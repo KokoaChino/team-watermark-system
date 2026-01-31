@@ -1,0 +1,7 @@
+# Redis 通用配置
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      database: 1
