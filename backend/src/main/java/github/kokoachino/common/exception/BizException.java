@@ -5,6 +5,8 @@ import lombok.Getter;
 
 
 /**
+ * 自定义业务异常类
+ *
  * @author kokoachino
  * @date 2026-01-31
  */

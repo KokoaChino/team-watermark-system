@@ -5,6 +5,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 
 /**
+ * 项目启动类
+ *
  * @author kokoachino
  * @date 2026-01-31
  */

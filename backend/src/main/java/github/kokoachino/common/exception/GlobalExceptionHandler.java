@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 
 /**
+ * 全局异常处理器
+ *
  * @author kokoachino
  * @date 2026-01-31
  */
@@ -19,7 +21,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
     public Result<Object> handleBusinessException(BizException e) {
-        log.error("业务异常： {}", e.getMessage());
+        log.error("业务异常：{}", e.getMessage());
         return Result.failed(e.getResultCode());
     }
 
@@ -38,7 +40,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public Result<Object> handleException(Exception e) {
-        log.error("系统异常： ", e);
+        log.error("系统异常：", e);
         return Result.failed(e.getMessage());
     }
 }

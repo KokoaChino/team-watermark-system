@@ -6,23 +6,23 @@ import java.time.LocalDateTime;
 
 
 /**
- * 用户实体类
+ * 团队成员实体类
  *
  * @author kokoachino
  * @date 2026-01-31
  */
 @Data
-@TableName("tw_user")
-public class User {
+@TableName("tw_team_member")
+public class TeamMember {
 
     @TableId(type = IdType.AUTO)
     private Integer id;
 
-    private String username;
+    private Integer teamId;
 
-    private String password;
+    private Integer userId;
 
-    private String email;
+    private String role; // leader / member
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

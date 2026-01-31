@@ -13,6 +13,8 @@ import java.util.Map;
 
 
 /**
+ * JWT 工具类
+ *
  * @author kokoachino
  * @date 2026-01-31
  */

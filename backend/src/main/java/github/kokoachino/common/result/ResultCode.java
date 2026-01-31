@@ -4,6 +4,8 @@ import lombok.Getter;
 
 
 /**
+ * 返回码枚举类
+ *
  * @author kokoachino
  * @date 2026-01-31
  */

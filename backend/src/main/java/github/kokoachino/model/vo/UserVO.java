@@ -5,6 +5,8 @@ import lombok.Data;
 
 
 /**
+ * 用户信息 VO
+ *
  * @author kokoachino
  * @date 2026-01-31
  */

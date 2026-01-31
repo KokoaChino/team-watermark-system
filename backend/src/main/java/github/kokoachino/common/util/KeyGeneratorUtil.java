@@ -4,6 +4,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 
 /**
+ * 密钥生成工具类
+ *
  * @author kokoachino
  * @date 2026-01-31
  */

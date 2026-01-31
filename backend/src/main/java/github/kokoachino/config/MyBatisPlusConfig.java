@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Configuration;
 
 
 /**
+ * MyBatis-Plus 配置类
+ *
  * @author kokoachino
  * @date 2026-01-31
  */

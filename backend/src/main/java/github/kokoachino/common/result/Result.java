@@ -4,6 +4,8 @@ import lombok.Data;
 
 
 /**
+ * 通用返回结果类
+ *
  * @author kokoachino
  * @date 2026-01-31
  */
