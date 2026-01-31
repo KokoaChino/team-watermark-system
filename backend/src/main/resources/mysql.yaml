@@ -1,4 +1,4 @@
-# MySQL 通用配置
+# MySQL 配置
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver

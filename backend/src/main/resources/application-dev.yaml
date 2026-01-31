@@ -11,3 +11,22 @@ spring:
   data:
     redis:
       host: localhost
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+# JWT 配置
+jwt:
+  secret: 0J6ytuN2yQa3hkTaZCIkwGpGIncu8YnB
+  expiration: 86400
+
+# 日志配置
+logging:
+  level:
+    github.kokoachino: debug

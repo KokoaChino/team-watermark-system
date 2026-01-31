@@ -1,8 +1,12 @@
-HELP.md
+### Qoder ###
+.qoder/
+
+### Java / Maven ###
 target/
-.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+backend/HELP.md
 
 ### STS ###
 .apt_generated
@@ -14,10 +18,11 @@ target/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
+out/
 
 ### NetBeans ###
 /nbproject/private/

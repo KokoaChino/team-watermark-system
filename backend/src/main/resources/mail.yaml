@@ -3,7 +3,7 @@ spring:
   mail:
     host: smtp.163.com
     username: 17575010142@163.com
-    password: YOUR_EMAIL_AUTH_CODE_HERE
+    password: HNXW4LW7ScMycf9R
     port: 465
     properties:
       from: 17575010142@163.com
