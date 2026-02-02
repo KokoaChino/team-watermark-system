@@ -58,17 +58,14 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public Result<Object> logout(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-        if (token != null && token.startsWith("Bearer ")) {
-            userService.logout(token.substring(7));
-        }
+    public Result<Object> logout() {
+        userService.logout();
         return Result.success(null, "已退出登录");
     }
 
     @DeleteMapping("/unregister")
-    public Result<Object> unregister(@RequestParam Integer userId) {
-        userService.unregister(userId);
+    public Result<Object> unregister() {
+        userService.unregister();
         return Result.success(null, "账户已注销");
     }
 }

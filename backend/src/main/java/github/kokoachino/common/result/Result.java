@@ -12,13 +12,13 @@ import lombok.Data;
 @Data
 public class Result<T> {
 
-    private long code;
+    private int code;
     private String message;
     private T data;
 
     protected Result() {}
 
-    protected Result(long code, String message, T data) {
+    protected Result(int code, String message, T data) {
         this.code = code;
         this.message = message;
         this.data = data;
@@ -34,6 +34,10 @@ public class Result<T> {
 
     public static <T> Result<T> failed(ResultCode resultCode) {
         return new Result<>(resultCode.getCode(), resultCode.getMessage(), null);
+    }
+
+    public static <T> Result<T> failed(ResultCode resultCode, String message) {
+        return new Result<>(resultCode.getCode(), message, null);
     }
 
     public static <T> Result<T> failed(String message) {

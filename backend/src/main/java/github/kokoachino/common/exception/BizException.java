@@ -19,9 +19,4 @@ public class BizException extends RuntimeException {
         super(resultCode.getMessage());
         this.resultCode = resultCode;
     }
-
-    public BizException(String message) {
-        super(message);
-        this.resultCode = ResultCode.ERROR;
-    }
 }

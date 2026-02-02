@@ -17,4 +17,6 @@ public class UserVO {
     private String username;
     private String email;
     private String token;
+    private Integer teamId;
+    private String teamRole;
 }

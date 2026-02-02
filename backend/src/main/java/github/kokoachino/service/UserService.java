@@ -28,7 +28,9 @@ public interface UserService extends IService<User> {
 
     CaptchaVO getCaptcha();
 
-    void logout(String token);
+    void logout();
 
-    void unregister(Integer userId);
+    void unregister();
+
+    UserVO getUserVOById(Integer userId);
 }

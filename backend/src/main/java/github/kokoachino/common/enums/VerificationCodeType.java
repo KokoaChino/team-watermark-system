@@ -20,4 +20,13 @@ public enum VerificationCodeType {
 
     private final String value;
     private final String desc;
+
+    public static VerificationCodeType fromValue(String value) {
+        for (VerificationCodeType type : VerificationCodeType.values()) {
+            if (type.getValue().equals(value)) {
+                return type;
+            }
+        }
+        return null;
+    }
 }

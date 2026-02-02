@@ -1,6 +1,7 @@
 package github.kokoachino.common.exception;
 
 import github.kokoachino.common.result.Result;
+import github.kokoachino.common.result.ResultCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
@@ -32,10 +33,10 @@ public class GlobalExceptionHandler {
         if (bindingResult.hasErrors()) {
             FieldError fieldError = bindingResult.getFieldError();
             if (fieldError != null) {
-                message = fieldError.getField() + fieldError.getDefaultMessage();
+                message = fieldError.getDefaultMessage();
             }
         }
-        return Result.validateFailed(message);
+        return Result.failed(ResultCode.VALIDATE_FAILED, message);
     }
 
     @ExceptionHandler(Exception.class)

@@ -1,6 +1,7 @@
 package github.kokoachino.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import github.kokoachino.common.enums.TeamRole;
 import github.kokoachino.mapper.TeamMapper;
 import github.kokoachino.mapper.TeamMemberMapper;
 import github.kokoachino.model.entity.Team;
@@ -9,7 +10,6 @@ import github.kokoachino.service.TeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 
 /**
  * 团队服务实现类
@@ -37,7 +37,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         TeamMember member = new TeamMember();
         member.setTeamId(team.getId());
         member.setUserId(userId);
-        member.setRole("leader");
+        member.setRole(TeamRole.LEADER.getValue());
         teamMemberMapper.insert(member);
 
         return team.getId();

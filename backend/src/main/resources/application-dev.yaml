@@ -3,11 +3,13 @@ server:
   port: 8080
 
 spring:
+  # 数据源配置
   datasource:
     url: jdbc:mysql://localhost:3306/team_watermark?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
+  # Redis 配置
   data:
     redis:
       host: localhost

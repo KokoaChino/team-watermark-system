@@ -32,19 +32,19 @@ public class JwtUtils {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateToken(String username) {
+    public String generateToken(Integer userId) {
         Map<String, Object> claims = new HashMap<>();
         return Jwts.builder()
                 .claims(claims)
-                .subject(username)
+                .subject(String.valueOf(userId))
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration * 1000))
                 .signWith(getSigningKey())
                 .compact();
     }
 
-    public String getUsernameFromToken(String token) {
-        return getClaimsFromToken(token).getSubject();
+    public Integer getUserIdFromToken(String token) {
+        return Integer.parseInt(getClaimsFromToken(token).getSubject());
     }
 
     private Claims getClaimsFromToken(String token) {
@@ -55,9 +55,12 @@ public class JwtUtils {
                 .getPayload();
     }
 
-    public boolean validateToken(String token, String username) {
-        String tokenUsername = getUsernameFromToken(token);
-        return (tokenUsername.equals(username) && !isTokenExpired(token));
+    public boolean validateToken(String token) {
+        try {
+            return !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
