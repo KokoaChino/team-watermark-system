@@ -11,9 +11,9 @@ import com.github.kokoachino.common.enums.VerificationCodeType;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.*;
+import com.github.kokoachino.config.SystemProperties;
 import com.github.kokoachino.model.dto.*;
 import com.github.kokoachino.config.RabbitConfig;
-import com.github.kokoachino.config.SystemProperties;
 import com.github.kokoachino.mapper.BlackListMapper;
 import com.github.kokoachino.mapper.TeamMemberMapper;
 import com.github.kokoachino.mapper.UserMapper;
@@ -22,6 +22,7 @@ import com.github.kokoachino.model.entity.Team;
 import com.github.kokoachino.model.entity.TeamMember;
 import com.github.kokoachino.model.entity.User;
 import com.github.kokoachino.model.vo.CaptchaVO;
+import com.github.kokoachino.model.vo.TokenVO;
 import com.github.kokoachino.model.vo.UserVO;
 import com.github.kokoachino.service.TeamService;
 import com.github.kokoachino.service.UserService;
@@ -54,8 +55,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private final TeamMemberMapper teamMemberMapper;
     private final BlackListMapper blackListMapper;
     private final CaptchaUtils captchaUtils;
-    private final AmqpTemplate amqpTemplate;
+    private final LockUtils lockUtils;
     private final SystemProperties systemProperties;
+    private final AmqpTemplate amqpTemplate;
 
     @Override
     public UserVO login(LoginDTO loginDTO) {
@@ -78,19 +80,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             }
         } else if (loginType == LoginType.CAPTCHA) {
             // 验证码登录
-            String captcha = loginDTO.getCaptcha();
+            String emailCode = loginDTO.getEmailCode();
             String redisKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeType.LOGIN.getValue(), user.getEmail());
-            String cachedCaptcha = redisUtils.get(redisKey);
-            if (cachedCaptcha == null || !cachedCaptcha.equals(captcha)) {
+            String cachedCode = redisUtils.get(redisKey);
+            if (cachedCode == null || !cachedCode.equals(emailCode)) {
                 throw new BizException(ResultCode.EMAIL_CODE_ERROR);
             }
             // 验证通过后删除验证码
             redisUtils.delete(redisKey);
         }
-        // 生成 Token
-        String token = jwtUtils.generateToken(user.getId());
+        // 生成 Access Token 和 Refresh Token
+        String accessToken = jwtUtils.generateAccessToken(user.getId());
+        String refreshToken = jwtUtils.generateRefreshToken(user.getId());
         UserVO userVO = getUserVOById(user.getId());
-        userVO.setToken(token);
+        userVO.setToken(accessToken);
+        userVO.setRefreshToken(refreshToken);
         return userVO;
     }
 
@@ -164,14 +168,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String redisKey = RedisKeyUtils.getEmailCodeKey(typeValue, sendCodeDTO.getEmail());
         // 校验发送频率
         if (redisUtils.hasKey(redisKey)) {
-            // 如果还剩 4 分钟以上，说明才刚发过
+            // 如果还剩60秒以上，说明才刚发过
             Long expire = redisUtils.getExpire(redisKey);
-            if (expire != null && expire > (systemProperties.getEmailCodeExpiration() * 60 - 60)) {
+            if (expire != null && expire > (systemProperties.getEmailCode().getExpiration() * 60 - 60)) {
                 throw new BizException(ResultCode.REQUEST_TOO_FREQUENT);
             }
         }
         // 存入 Redis
-        redisUtils.set(redisKey, code, systemProperties.getEmailCodeExpiration(), TimeUnit.MINUTES);
+        redisUtils.set(redisKey, code, systemProperties.getEmailCode().getExpiration(), TimeUnit.MINUTES);
         // 发送邮件 (异步)
         String subject = "【协作式批量图片水印处理系统】验证码（请勿泄露）";
         String htmlContent = """
@@ -181,7 +185,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 <p>您好！</p>
                 <p>您正在进行【%s】操作，本次验证码为：<br>
                 <strong style='color: #1890ff; font-size: 18px;'>%s</strong></p>
-                
+            
                 <div style='color: #666; margin-top: 20px;'>
                     <h4>【温馨提示】</h4>
                     <ol>
@@ -190,13 +194,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                         <li>如非本人操作，请忽略此邮件</li>
                     </ol>
                 </div>
-                
-                <p>祝您使用愉快()/<br>
+            
+                <p>祝您使用愉快(´･ω･`)/<br>
                 <hr style='border: 0; border-top: 1px solid #eee; margin: 20px 0;'>
                 <p style='color: #999; font-size: 12px;'>此邮件由系统自动发送，请勿直接回复</p>
             </body>
             </html>
-            """.formatted(type.getDesc(), code, systemProperties.getEmailCodeExpiration());
+            """.formatted(type.getDesc(), code, systemProperties.getEmailCode().getExpiration());
         MailMessage mailMessage = MailMessage.builder()
                 .to(sendCodeDTO.getEmail())
                 .subject(subject)
@@ -208,12 +212,47 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public CaptchaVO getCaptcha() {
-        CaptchaVO captchaVO = captchaUtils.createCaptcha();
-        String key = UUID.randomUUID().toString();
-        captchaVO.setKey(key);
-        // 存入 Redis
-        redisUtils.set(RedisKeyUtils.getCaptchaKey(key), captchaVO.getCode(), systemProperties.getCaptchaExpiration(), TimeUnit.MINUTES);
-        return captchaVO;
+        CaptchaUtils.CaptchaResult result = captchaUtils.createCaptcha();
+        // 将验证码存入 Redis
+        redisUtils.set(
+                RedisKeyUtils.getCaptchaKey(result.key()),
+                result.code(),
+                systemProperties.getCaptcha().getExpiration(),
+                TimeUnit.MINUTES
+        );
+        // 返回前端需要的数据（不包含 code）
+        return CaptchaVO.builder()
+                .base64(result.base64())
+                .key(result.key())
+                .build();
+    }
+
+    @Override
+    public TokenVO refreshToken(RefreshTokenDTO refreshTokenDTO) {
+        String refreshToken = refreshTokenDTO.getRefreshToken();
+        // 1. 验证 Refresh Token 有效性
+        if (!jwtUtils.validateToken(refreshToken)) {
+            throw new BizException(ResultCode.UNAUTHORIZED);
+        }
+        // 2. 检查是否为 Refresh Token
+        if (!jwtUtils.isRefreshToken(refreshToken)) {
+            throw new BizException(ResultCode.VALIDATE_FAILED);
+        }
+        // 3. 检查 Token 是否在黑名单中
+        long count = blackListMapper.selectCount(new LambdaQueryWrapper<BlackList>()
+                .eq(BlackList::getType, BlackListType.TOKEN.getValue())
+                .eq(BlackList::getValue, refreshToken));
+        if (count > 0) {
+            throw new BizException(ResultCode.UNAUTHORIZED);
+        }
+        // 4. 解析用户 ID 并生成新的 Access Token
+        Integer userId = jwtUtils.getUserIdFromToken(refreshToken);
+        String newAccessToken = jwtUtils.generateAccessToken(userId);
+        return TokenVO.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(refreshToken)
+                .expiresIn(jwtUtils.getAccessTokenExpiration())
+                .build();
     }
 
     @Override
@@ -234,59 +273,82 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Transactional(rollbackFor = Exception.class)
     public void unregister() {
         Integer userId = UserContext.getUserId();
-        User user = this.getById(userId);
-        if (user == null) return;
-        // 1. 获取用户所属的所有团队及角色
-        List<TeamMember> memberships = teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
-                .eq(TeamMember::getUserId, userId));
-        for (TeamMember member : memberships) {
-            if (TeamRole.LEADER.getValue().equals(member.getRole())) {
-                // 队长逻辑
-                List<TeamMember> others = teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
-                        .eq(TeamMember::getTeamId, member.getTeamId())
-                        .ne(TeamMember::getUserId, userId)
-                        .orderByAsc(TeamMember::getCreatedAt));
-                if (others.isEmpty()) {
-                    // 仅剩自己，解散团队
-                    teamService.removeById(member.getTeamId());
-                } else {
-                    // 转移队长身份给最早加入的成员
-                    TeamMember nextLeader = others.get(0);
-                    nextLeader.setRole(TeamRole.LEADER.getValue());
-                    teamMemberMapper.updateById(nextLeader);
-                    
-                    Team team = teamService.getById(member.getTeamId());
-                    team.setLeaderId(nextLeader.getUserId());
-                    teamService.updateById(team);
-                }
+        String lockKey = LockUtils.getUserLockKey(userId);
+        String lockValue = UUID.randomUUID().toString();
+        // 使用分布式锁保证原子性
+        lockUtils.executeWithLock(lockKey, lockValue, () -> {
+            User user = this.getById(userId);
+            if (user == null) return;
+            // 1. 获取用户所属团队（用户同一时刻只能存在于一个团队）
+            TeamMember member = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
+                    .eq(TeamMember::getUserId, userId));
+            if (member != null) {
+                Integer teamId = member.getTeamId();
+                // 使用团队锁
+                String teamLockKey = LockUtils.getTeamLockKey(teamId);
+                String teamLockValue = UUID.randomUUID().toString();
+                lockUtils.executeWithLock(teamLockKey, teamLockValue, () -> {
+                    if (TeamRole.LEADER.getValue().equals(member.getRole())) {
+                        // 队长逻辑：查找其他成员
+                        List<TeamMember> others = teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
+                                .eq(TeamMember::getTeamId, teamId)
+                                .ne(TeamMember::getUserId, userId)
+                                .orderByAsc(TeamMember::getCreatedAt));
+                        if (others.isEmpty()) {
+                            // 仅剩自己，解散团队
+                            teamService.removeById(teamId);
+                        } else {
+                            // 转移队长身份给最早加入的成员
+                            TeamMember nextLeader = others.get(0);
+                            nextLeader.setRole(TeamRole.LEADER.getValue());
+                            teamMemberMapper.updateById(nextLeader);
+
+                            Team team = teamService.getById(teamId);
+                            team.setLeaderId(nextLeader.getUserId());
+                            teamService.updateById(team);
+                        }
+                    }
+                    // 删除成员记录
+                    teamMemberMapper.deleteById(member.getId());
+                });
             }
-            // 删除成员记录
-            teamMemberMapper.deleteById(member.getId());
-        }
-        // 2. 删除用户
-        this.removeById(userId);
-        // 3. 邮箱加入黑名单防止刷点数
-        BlackList blackList = new BlackList();
-        blackList.setType(BlackListType.EMAIL.getValue());
-        blackList.setValue(user.getEmail());
-        blackListMapper.insert(blackList);
+            // 2. 删除用户
+            this.removeById(userId);
+            // 3. 邮箱加入黑名单防止刷点数
+            BlackList blackList = new BlackList();
+            blackList.setType(BlackListType.EMAIL.getValue());
+            blackList.setValue(user.getEmail());
+            blackListMapper.insert(blackList);
+            // 4. 清除用户缓存
+            redisUtils.delete(RedisKeyUtils.getUserKey(userId));
+        });
     }
 
     @Override
     public UserVO getUserVOById(Integer userId) {
+        // 先从 Redis 缓存中获取
+        String cacheKey = RedisKeyUtils.getUserKey(userId);
+        String cachedUserJson = redisUtils.get(cacheKey);
+        if (cachedUserJson != null) {
+            // 从缓存中返回
+            return cn.hutool.json.JSONUtil.toBean(cachedUserJson, UserVO.class);
+        }
+        // 缓存中没有，从数据库查询
         User user = this.getById(userId);
         if (user == null) return null;
-        // 获取用户所属团队（这里假设获取其作为队长的团队或者加入的第一个团队）
+        // 获取用户所属团队（一个用户同一时刻只能存在于一个团队中）
         TeamMember member = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
                 .eq(TeamMember::getUserId, userId)
-                .orderByDesc(TeamMember::getRole)
                 .last("limit 1"));
-        return UserVO.builder()
+        UserVO userVO = UserVO.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .teamId(member != null ? member.getTeamId() : null)
                 .teamRole(member != null ? member.getRole() : null)
                 .build();
+        // 存入 Redis 缓存，有效期 30 分钟
+        redisUtils.set(cacheKey, cn.hutool.json.JSONUtil.toJsonStr(userVO), 30, TimeUnit.MINUTES);
+        return userVO;
     }
 }

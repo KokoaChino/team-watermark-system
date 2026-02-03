@@ -1,0 +1,31 @@
+# 系统配置
+system:
+  # 初始点数
+  initial-points: 10000
+  
+  # 图形验证码配置
+  captcha:
+    # 验证码宽度
+    width: 120
+    # 验证码高度
+    height: 40
+    # 验证码字符数
+    code-length: 4
+    # 干扰线宽度
+    line-count: 10
+    # 有效期（分钟）
+    expiration: 2
+  
+  # 邮箱验证码配置
+  email-code:
+    # 有效期（分钟）
+    expiration: 5
+
+# JWT 配置
+jwt:
+  # 密钥（需要至少32个字符）
+  secret: YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast32CharactersLong
+  # Access Token 有效期（秒）24小时
+  access-token-expiration: 86400
+  # Refresh Token 有效期（秒）7天
+  refresh-token-expiration: 604800

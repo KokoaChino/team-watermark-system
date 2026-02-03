@@ -1,13 +1,11 @@
 package com.github.kokoachino.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.github.kokoachino.model.dto.LoginDTO;
+import com.github.kokoachino.model.dto.*;
 import com.github.kokoachino.model.entity.User;
-import com.github.kokoachino.model.vo.UserVO;
-import com.github.kokoachino.model.dto.RegisterDTO;
-import com.github.kokoachino.model.dto.ForgotPasswordDTO;
-import com.github.kokoachino.model.dto.SendCodeDTO;
 import com.github.kokoachino.model.vo.CaptchaVO;
+import com.github.kokoachino.model.vo.TokenVO;
+import com.github.kokoachino.model.vo.UserVO;
 
 
 /**
@@ -27,6 +25,8 @@ public interface UserService extends IService<User> {
     void sendVerificationCode(SendCodeDTO sendCodeDTO);
 
     CaptchaVO getCaptcha();
+
+    TokenVO refreshToken(RefreshTokenDTO refreshTokenDTO);
 
     void logout();
 
