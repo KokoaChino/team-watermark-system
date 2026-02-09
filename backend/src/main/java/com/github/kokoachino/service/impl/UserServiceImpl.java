@@ -2,6 +2,7 @@ package com.github.kokoachino.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.crypto.digest.BCrypt;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.kokoachino.common.enums.BlackListType;
@@ -35,6 +36,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import com.github.kokoachino.common.util.RedisKeyUtils;
 
 
 /**
@@ -298,7 +300,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String cachedUserJson = redisUtils.get(cacheKey);
         if (cachedUserJson != null) {
             // 从缓存中返回
-            return cn.hutool.json.JSONUtil.toBean(cachedUserJson, UserVO.class);
+            return JSONUtil.toBean(cachedUserJson, UserVO.class);
         }
         // 缓存中没有，从数据库查询
         User user = this.getById(userId);
@@ -317,5 +319,81 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 存入 Redis 缓存，有效期 30 分钟
         redisUtils.set(cacheKey, cn.hutool.json.JSONUtil.toJsonStr(userVO), 30, TimeUnit.MINUTES);
         return userVO;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UserVO updateProfile(UpdateProfileDTO dto, HttpServletRequest request) {
+        Integer userId = UserContext.getUserId();
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new BizException(ResultCode.USER_NOT_FOUND);
+        }
+        boolean needLogout = false;
+        // 1. 处理用户名修改
+        if (dto.getUsername() != null) {
+            // 检查是否与当前用户名相同
+            if (dto.getUsername().equals(user.getUsername())) {
+                throw new BizException(ResultCode.SAME_USER);
+            }
+            // 检查新用户名是否已被其他用户使用
+            long count = this.count(new LambdaQueryWrapper<User>()
+                    .eq(User::getUsername, dto.getUsername())
+                    .ne(User::getId, userId));
+            if (count > 0) {
+                throw new BizException(ResultCode.USER_EXIST);
+            }
+            user.setUsername(dto.getUsername());
+        }
+        // 2. 处理密码修改
+        if (dto.getNewPassword() != null) {
+            // 验证原密码
+            if (!BCrypt.checkpw(dto.getOriginalPassword(), user.getPassword())) {
+                throw new BizException(ResultCode.INVALID_PASSWORD);
+            }
+            user.setPassword(BCrypt.hashpw(dto.getNewPassword()));
+            needLogout = true;
+        }
+        // 3. 处理邮箱修改
+        if (dto.getNewEmail() != null) {
+            // 检查是否与当前邮箱相同
+            if (dto.getNewEmail().equals(user.getEmail())) {
+                throw new BizException(ResultCode.SAME_EMAIL);
+            }
+            // 验证邮箱验证码
+            String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeType.UPDATE_EMAIL.getValue(), dto.getNewEmail());
+            String cachedCode = redisUtils.get(emailCodeKey);
+            if (cachedCode == null || !cachedCode.equals(dto.getEmailCode())) {
+                throw new BizException(ResultCode.EMAIL_CODE_ERROR);
+            }
+            // 删除已使用的验证码
+            redisUtils.delete(emailCodeKey);
+            // 检查新邮箱是否已被其他用户绑定
+            long count = this.count(new LambdaQueryWrapper<User>()
+                    .eq(User::getEmail, dto.getNewEmail())
+                    .ne(User::getId, userId));
+            if (count > 0) {
+                throw new BizException(ResultCode.EMAIL_ALREADY_BOUND);
+            }
+            user.setEmail(dto.getNewEmail());
+            needLogout = true;
+        }
+        // 4. 更新用户信息
+        this.updateById(user);
+        // 5. 清除用户缓存
+        redisUtils.delete(RedisKeyUtils.getUserKey(userId));
+        // 6. 如果需要重新登录（修改了密码或邮箱），将当前 Token 加入黑名单
+        if (needLogout) {
+            String token = request.getHeader("Authorization");
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7);
+                BlackList blackList = new BlackList();
+                blackList.setType(BlackListType.TOKEN.getValue());
+                blackList.setValue(token);
+                blackListMapper.insert(blackList);
+            }
+        }
+        // 7. 返回更新后的用户信息
+        return getUserVOById(userId);
     }
 }

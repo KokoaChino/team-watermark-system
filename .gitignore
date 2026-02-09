@@ -1,6 +1,9 @@
 ### Qoder ###
 .qoder/
 
+### Trae ###
+.trae/
+
 ### Java / Maven ###
 target/
 !.mvn/wrapper/maven-wrapper.jar

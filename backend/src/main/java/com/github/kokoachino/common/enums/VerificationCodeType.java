@@ -16,7 +16,8 @@ public enum VerificationCodeType {
 
     REGISTER("register", "注册验证码"),
     FORGOT_PASSWORD("forgot_password", "找回密码验证码"),
-    LOGIN("login", "登录验证码");
+    LOGIN("login", "登录验证码"),
+    UPDATE_EMAIL("update_email", "修改邮箱验证码");
 
     private final String value;
     private final String desc;
