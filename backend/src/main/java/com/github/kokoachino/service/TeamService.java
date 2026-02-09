@@ -93,4 +93,21 @@ public interface TeamService extends IService<Team> {
      * @return 团队成员信息
      */
     TeamMemberVO getCurrentTeamInfo(Integer userId);
+
+    /**
+     * 获取用户当前团队ID
+     *
+     * @param userId 用户ID
+     * @return 团队ID
+     */
+    Integer getCurrentTeamId(Integer userId);
+
+    /**
+     * 判断用户是否是团队队长
+     *
+     * @param userId 用户ID
+     * @param teamId 团队ID
+     * @return 是否是队长
+     */
+    boolean isTeamLeader(Integer userId, Integer teamId);
 }

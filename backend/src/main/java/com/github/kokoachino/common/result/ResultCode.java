@@ -40,7 +40,24 @@ public enum ResultCode {
     CANNOT_KICK_SELF(2007, "不能踢出自己"),
     MEMBER_NOT_FOUND(2008, "成员不存在"),
     CANNOT_LEAVE_PERSONAL_TEAM(2009, "不能退出个人团队"),
-    INVITE_CODE_NOT_FOUND(2010, "邀请码不存在");
+    INVITE_CODE_NOT_FOUND(2010, "邀请码不存在"),
+
+    // 水印模板相关错误码 (3001-3100)
+    TEMPLATE_NOT_FOUND(3001, "水印模板不存在"),
+    TEMPLATE_NAME_EXIST(3002, "模板名称已存在"),
+    TEMPLATE_VERSION_CONFLICT(3003, "模板已被他人修改，请刷新后重试"),
+    TEMPLATE_DELETED(3004, "该模板已被删除"),
+    NOT_TEMPLATE_CREATOR(3005, "只有模板创建者或队长可以删除模板"),
+
+    // 草稿相关错误码 (3101-3150)
+    DRAFT_NOT_FOUND(3101, "草稿不存在"),
+    NO_WORKING_DRAFT(3102, "当前没有正在编辑的草稿"),
+
+    // 字体相关错误码 (3151-3200)
+    FONT_NOT_FOUND(3151, "字体不存在"),
+    FONT_NAME_EXIST(3152, "字体名称已存在"),
+    FONT_FILE_INVALID(3153, "字体文件格式不正确，仅支持.ttf和.otf格式"),
+    FONT_UPLOAD_FAILED(3154, "字体上传失败");
 
     private final int code;
     private final String message;

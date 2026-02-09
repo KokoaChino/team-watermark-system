@@ -267,6 +267,28 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     /**
      * 构建团队成员VO
      */
+    @Override
+    public Integer getCurrentTeamId(Integer userId) {
+        TeamMember member = teamMemberMapper.selectOne(
+                new LambdaQueryWrapper<TeamMember>()
+                        .eq(TeamMember::getUserId, userId)
+        );
+        if (member == null) {
+            throw new BizException(ResultCode.MEMBER_NOT_FOUND);
+        }
+        return member.getTeamId();
+    }
+
+    @Override
+    public boolean isTeamLeader(Integer userId, Integer teamId) {
+        TeamMember member = teamMemberMapper.selectOne(
+                new LambdaQueryWrapper<TeamMember>()
+                        .eq(TeamMember::getUserId, userId)
+                        .eq(TeamMember::getTeamId, teamId)
+        );
+        return member != null && TeamRole.LEADER.getValue().equals(member.getRole());
+    }
+
     private TeamMemberVO buildTeamMemberVO(Integer teamId, Integer userId, String username, String role) {
         Team team = this.getById(teamId);
         if (team == null) {
