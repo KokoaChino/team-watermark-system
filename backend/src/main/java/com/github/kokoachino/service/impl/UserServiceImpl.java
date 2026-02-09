@@ -22,7 +22,6 @@ import com.github.kokoachino.model.entity.Team;
 import com.github.kokoachino.model.entity.TeamMember;
 import com.github.kokoachino.model.entity.User;
 import com.github.kokoachino.model.vo.CaptchaVO;
-import com.github.kokoachino.model.vo.TokenVO;
 import com.github.kokoachino.model.vo.UserVO;
 import com.github.kokoachino.service.TeamService;
 import com.github.kokoachino.service.UserService;
@@ -34,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.List;
-import java.util.UUID;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 
@@ -89,12 +88,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             // 验证通过后删除验证码
             redisUtils.delete(redisKey);
         }
-        // 生成 Access Token 和 Refresh Token
-        String accessToken = jwtUtils.generateAccessToken(user.getId());
-        String refreshToken = jwtUtils.generateRefreshToken(user.getId());
+        // 生成 Token
+        String token = jwtUtils.generateToken(user.getId());
         UserVO userVO = getUserVOById(user.getId());
-        userVO.setToken(accessToken);
-        userVO.setRefreshToken(refreshToken);
+        userVO.setToken(token);
         return userVO;
     }
 
@@ -228,36 +225,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public TokenVO refreshToken(RefreshTokenDTO refreshTokenDTO) {
-        String refreshToken = refreshTokenDTO.getRefreshToken();
-        // 1. 验证 Refresh Token 有效性
-        if (!jwtUtils.validateToken(refreshToken)) {
-            throw new BizException(ResultCode.UNAUTHORIZED);
-        }
-        // 2. 检查是否为 Refresh Token
-        if (!jwtUtils.isRefreshToken(refreshToken)) {
-            throw new BizException(ResultCode.VALIDATE_FAILED);
-        }
-        // 3. 检查 Token 是否在黑名单中
-        long count = blackListMapper.selectCount(new LambdaQueryWrapper<BlackList>()
-                .eq(BlackList::getType, BlackListType.TOKEN.getValue())
-                .eq(BlackList::getValue, refreshToken));
-        if (count > 0) {
-            throw new BizException(ResultCode.UNAUTHORIZED);
-        }
-        // 4. 解析用户 ID 并生成新的 Access Token
-        Integer userId = jwtUtils.getUserIdFromToken(refreshToken);
-        String newAccessToken = jwtUtils.generateAccessToken(userId);
-        return TokenVO.builder()
-                .accessToken(newAccessToken)
-                .refreshToken(refreshToken)
-                .expiresIn(jwtUtils.getAccessTokenExpiration())
-                .build();
-    }
-
-    @Override
     public void logout() {
-        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        HttpServletRequest request = ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes())).getRequest();
         String token = request.getHeader("Authorization");
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
@@ -274,9 +243,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public void unregister() {
         Integer userId = UserContext.getUserId();
         String lockKey = LockUtils.getUserLockKey(userId);
-        String lockValue = UUID.randomUUID().toString();
         // 使用分布式锁保证原子性
-        lockUtils.executeWithLock(lockKey, lockValue, () -> {
+        lockUtils.executeWithLock(lockKey, () -> {
             User user = this.getById(userId);
             if (user == null) return;
             // 1. 获取用户所属团队（用户同一时刻只能存在于一个团队）
@@ -286,8 +254,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 Integer teamId = member.getTeamId();
                 // 使用团队锁
                 String teamLockKey = LockUtils.getTeamLockKey(teamId);
-                String teamLockValue = UUID.randomUUID().toString();
-                lockUtils.executeWithLock(teamLockKey, teamLockValue, () -> {
+                lockUtils.executeWithLock(teamLockKey, () -> {
                     if (TeamRole.LEADER.getValue().equals(member.getRole())) {
                         // 队长逻辑：查找其他成员
                         List<TeamMember> others = teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
@@ -299,7 +266,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                             teamService.removeById(teamId);
                         } else {
                             // 转移队长身份给最早加入的成员
-                            TeamMember nextLeader = others.get(0);
+                            TeamMember nextLeader = others.getFirst();
                             nextLeader.setRole(TeamRole.LEADER.getValue());
                             teamMemberMapper.updateById(nextLeader);
 

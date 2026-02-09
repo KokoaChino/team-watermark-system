@@ -29,9 +29,6 @@ public class UserVO {
     @Schema(description = "访问令牌", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String token;
 
-    @Schema(description = "刷新令牌", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-    private String refreshToken;
-
     @Schema(description = "所属团队 ID", example = "1")
     private Integer teamId;
 

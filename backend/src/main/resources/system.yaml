@@ -2,7 +2,6 @@
 system:
   # 初始点数
   initial-points: 10000
-  
   # 图形验证码配置
   captcha:
     # 验证码宽度
@@ -15,7 +14,6 @@ system:
     line-count: 10
     # 有效期（分钟）
     expiration: 2
-  
   # 邮箱验证码配置
   email-code:
     # 有效期（分钟）
@@ -23,9 +21,9 @@ system:
 
 # JWT 配置
 jwt:
-  # 密钥（需要至少32个字符）
-  secret: YourSuperSecretKeyForJWTTokenGenerationMustBeAtLeast32CharactersLong
-  # Access Token 有效期（秒）24小时
-  access-token-expiration: 86400
-  # Refresh Token 有效期（秒）7天
-  refresh-token-expiration: 604800
+  # 密钥
+  secret: 8irILqtIqqVPQ4D71MrhBjVr5mqYvlQo
+  # Token 有效期（秒）30天
+  expiration: 2592000
+  # 自动续期阈值（秒）7天，当剩余有效期小于此值时自动续期
+  auto-renew-threshold: 604800

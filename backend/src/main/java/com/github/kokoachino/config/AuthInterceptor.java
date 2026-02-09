@@ -19,6 +19,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 
 /**
+ * 认证拦截器
+ *
  * @author kokoachino
  * @date 2026-02-02
  */
@@ -55,6 +57,12 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new BizException(ResultCode.USER_NOT_FOUND);
         }
         UserContext.setUser(userVO);
+        // 4. 检查是否需要续期（剩余有效期 < 7 天）
+        if (jwtUtils.shouldRenewToken(token)) {
+            String newToken = jwtUtils.generateToken(userId);
+            // 通过响应头返回新 Token，前端需要监听此头并替换本地 Token
+            response.setHeader("X-New-Token", newToken);
+        }
         return true;
     }
 

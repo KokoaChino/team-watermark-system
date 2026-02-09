@@ -1,5 +1,6 @@
 package com.github.kokoachino.common.util;
 
+import com.github.kokoachino.common.enums.TokenType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -15,7 +16,7 @@ import java.util.Map;
 
 /**
  * JWT 工具类
- * 支持长短双 Token 机制：Access Token 用于接口认证，Refresh Token 用于刷新 Access Token
+ * 支持单 Token 自动续期机制
  *
  * @author kokoachino
  * @date 2026-01-31
@@ -26,16 +27,12 @@ public class JwtUtils {
     @Value("${jwt.secret}")
     private String secret;
 
-    /**
-     * -- GETTER --
-     *  获取 Access Token 有效期（秒）
-     */
     @Getter
-    @Value("${jwt.access-token-expiration}")
-    private Long accessTokenExpiration;
+    @Value("${jwt.expiration}")
+    private Long expiration;
 
-    @Value("${jwt.refresh-token-expiration}")
-    private Long refreshTokenExpiration;
+    @Value("${jwt.auto-renew-threshold}")
+    private Long autoRenewThreshold;
 
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
@@ -43,31 +40,16 @@ public class JwtUtils {
     }
 
     /**
-     * 生成 Access Token
+     * 生成 Token
      */
-    public String generateAccessToken(Integer userId) {
+    public String generateToken(Integer userId) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("type", "access");
+        claims.put("type", TokenType.ACCESS.getValue());
         return Jwts.builder()
                 .claims(claims)
                 .subject(String.valueOf(userId))
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + accessTokenExpiration * 1000))
-                .signWith(getSigningKey())
-                .compact();
-    }
-
-    /**
-     * 生成 Refresh Token
-     */
-    public String generateRefreshToken(Integer userId) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("type", "refresh");
-        return Jwts.builder()
-                .claims(claims)
-                .subject(String.valueOf(userId))
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + refreshTokenExpiration * 1000))
+                .expiration(new Date(System.currentTimeMillis() + expiration * 1000))
                 .signWith(getSigningKey())
                 .compact();
     }
@@ -110,12 +92,14 @@ public class JwtUtils {
     }
 
     /**
-     * 检查是否为 Refresh Token
+     * 检查 Token 是否需要续期
+     * 当剩余有效期小于续期阈值时返回 true
      */
-    public boolean isRefreshToken(String token) {
+    public boolean shouldRenewToken(String token) {
         try {
-            Claims claims = getClaimsFromToken(token);
-            return "refresh".equals(claims.get("type"));
+            Date expirationDate = getClaimsFromToken(token).getExpiration();
+            long remainingTime = (expirationDate.getTime() - System.currentTimeMillis()) / 1000;
+            return remainingTime > 0 && remainingTime < autoRenewThreshold;
         } catch (Exception e) {
             return false;
         }

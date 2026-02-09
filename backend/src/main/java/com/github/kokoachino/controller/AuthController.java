@@ -3,11 +3,9 @@ package com.github.kokoachino.controller;
 import com.github.kokoachino.common.result.Result;
 import com.github.kokoachino.model.dto.ForgotPasswordDTO;
 import com.github.kokoachino.model.dto.LoginDTO;
-import com.github.kokoachino.model.dto.RefreshTokenDTO;
 import com.github.kokoachino.model.dto.RegisterDTO;
 import com.github.kokoachino.model.dto.SendCodeDTO;
 import com.github.kokoachino.model.vo.CaptchaVO;
-import com.github.kokoachino.model.vo.TokenVO;
 import com.github.kokoachino.model.vo.UserVO;
 import com.github.kokoachino.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -64,13 +62,6 @@ public class AuthController {
     public Result<CaptchaVO> getCaptcha() {
         CaptchaVO captchaVO = userService.getCaptcha();
         return Result.success(captchaVO);
-    }
-
-    @PostMapping("/refresh-token")
-    @Operation(summary = "刷新令牌", description = "使用 Refresh Token 刷新 Access Token")
-    public Result<TokenVO> refreshToken(@Valid @RequestBody RefreshTokenDTO refreshTokenDTO) {
-        TokenVO tokenVO = userService.refreshToken(refreshTokenDTO);
-        return Result.success(tokenVO, "令牌刷新成功");
     }
 
     @PostMapping("/logout")

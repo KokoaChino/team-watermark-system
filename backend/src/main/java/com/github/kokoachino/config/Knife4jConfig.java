@@ -26,7 +26,7 @@ public class Knife4jConfig {
                         .version("v1.0.0")
                         .contact(new Contact()
                                 .name("kokoachino")
-                                .email("kokoachino@example.com"))
+                                .email("2178740980@qq.com"))
                         .license(new License()
                                 .name("MIT License")
                                 .url("https://opensource.org/licenses/MIT")));

@@ -25,7 +25,8 @@ public enum ResultCode {
     EMAIL_CODE_ERROR(1006, "邮箱验证码错误"),
     REQUEST_TOO_FREQUENT(1007, "请求过于频繁，请稍后再试"),
     SEND_MAIL_FAILED(1008, "邮件发送失败"),
-    UNSUPPORTED_LOGIN_TYPE(1009, "不支持的登录方式");
+    UNSUPPORTED_LOGIN_TYPE(1009, "不支持的登录方式"),
+    LOCK_ACQUIRE_FAILED(1010, "获取锁失败，请稍后重试");
 
     private final int code;
     private final String message;
