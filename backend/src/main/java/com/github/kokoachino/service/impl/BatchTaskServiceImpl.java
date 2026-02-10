@@ -7,9 +7,11 @@ import com.github.kokoachino.config.SystemProperties;
 import com.github.kokoachino.mapper.BatchTaskMapper;
 import com.github.kokoachino.model.dto.batch.SubmitBatchTaskDTO;
 import com.github.kokoachino.model.entity.BatchTask;
+import com.github.kokoachino.model.enums.EventType;
 import com.github.kokoachino.model.vo.BatchTaskVO;
 import com.github.kokoachino.service.BatchTaskService;
 import com.github.kokoachino.service.MinioService;
+import com.github.kokoachino.service.OperationLogService;
 import com.github.kokoachino.service.PointService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -40,6 +43,7 @@ public class BatchTaskServiceImpl implements BatchTaskService {
     private final MinioService minioService;
     private final SystemProperties systemProperties;
     private final RedissonClient redissonClient;
+    private final OperationLogService operationLogService;
 
     private static final String TASK_LOCK_PREFIX = "batch:task:user:";
 
@@ -48,35 +52,29 @@ public class BatchTaskServiceImpl implements BatchTaskService {
     public BatchTaskVO submitTask(SubmitBatchTaskDTO dto) {
         Integer userId = UserContext.getUserId();
         Integer teamId = UserContext.getUser().getTeamId();
-
         // 1. 检查是否超过单任务最大图片数
         if (dto.getImageCount() > systemProperties.getBatchTask().getMaxImagesPerTask()) {
             throw new BizException(ResultCode.VALIDATE_FAILED);
         }
-
         // 2. 使用分布式锁确保同一用户只有一个进行中的任务
         String lockKey = TASK_LOCK_PREFIX + userId;
         RLock lock = redissonClient.getLock(lockKey);
-
         try {
             boolean acquired = lock.tryLock(5, 30, TimeUnit.SECONDS);
             if (!acquired) {
                 throw new BizException(ResultCode.LOCK_ACQUIRE_FAILED);
             }
-
             try {
                 // 3. 检查用户是否有未完成的任务
                 int uncompletedCount = batchTaskMapper.countUncompletedByUserId(userId);
                 if (uncompletedCount > 0) {
                     throw new BizException(ResultCode.BATCH_TASK_SUBMIT_FAILED);
                 }
-
                 // 4. 验证点数是否充足
                 int totalPoints = dto.getImageCount();
                 if (!pointService.hasEnoughPoints(teamId, totalPoints)) {
                     throw new BizException(ResultCode.POINTS_NOT_ENOUGH);
                 }
-
                 // 5. 预扣点数
                 String taskNo = generateTaskNo();
                 boolean deductSuccess = pointService.deductPoints(
@@ -87,7 +85,6 @@ public class BatchTaskServiceImpl implements BatchTaskService {
                 if (!deductSuccess) {
                     throw new BizException(ResultCode.POINT_TRANSACTION_FAILED);
                 }
-
                 // 6. 创建任务记录
                 BatchTask task = new BatchTask();
                 task.setTaskNo(taskNo);
@@ -102,10 +99,11 @@ public class BatchTaskServiceImpl implements BatchTaskService {
                 task.setCreatedAt(LocalDateTime.now());
                 task.setUpdatedAt(LocalDateTime.now());
                 batchTaskMapper.insert(task);
-
                 log.info("批量任务提交成功：taskId={}, taskNo={}, imageCount={}, deductedPoints={}",
                         task.getId(), taskNo, dto.getImageCount(), totalPoints);
-
+                // 记录操作日志
+                operationLogService.log(EventType.BATCH_TASK_SUBMIT, task.getId(), taskNo,
+                        Map.of("imageCount", dto.getImageCount(), "deductedPoints", totalPoints, "description", dto.getDescription()));
                 return convertToVO(task);
             } finally {
                 lock.unlock();
@@ -120,39 +118,32 @@ public class BatchTaskServiceImpl implements BatchTaskService {
     @Transactional(rollbackFor = Exception.class)
     public void completeTask(Integer taskId, Integer successCount, MultipartFile resultZip, String reportJson) {
         Integer userId = UserContext.getUserId();
-
         // 1. 使用分布式锁
         String lockKey = TASK_LOCK_PREFIX + userId;
         RLock lock = redissonClient.getLock(lockKey);
-
         try {
             boolean acquired = lock.tryLock(5, 30, TimeUnit.SECONDS);
             if (!acquired) {
                 throw new BizException(ResultCode.LOCK_ACQUIRE_FAILED);
             }
-
             try {
                 // 2. 查询任务
                 BatchTask task = batchTaskMapper.selectById(taskId);
                 if (task == null) {
                     throw new BizException(ResultCode.BATCH_TASK_NOT_FOUND);
                 }
-
                 // 3. 验证权限
                 if (!task.getCreatedById().equals(userId)) {
                     throw new BizException(ResultCode.FORBIDDEN);
                 }
-
                 // 4. 检查任务是否已完成
                 if (task.getCompletedAt() != null) {
                     throw new BizException(ResultCode.TASK_ALREADY_COMPLETED);
                 }
-
                 // 5. 验证成功数量不超过图片总数
                 if (successCount > task.getImageCount()) {
                     throw new BizException(ResultCode.VALIDATE_FAILED);
                 }
-
                 // 6. 上传结果ZIP文件到MinIO（如果提供了）
                 String resultZipKey = null;
                 if (resultZip != null && !resultZip.isEmpty()) {
@@ -166,11 +157,9 @@ public class BatchTaskServiceImpl implements BatchTaskService {
                         // 上传失败不影响点数结算
                     }
                 }
-
                 // 7. 计算实际消耗和返还点数
                 int consumedPoints = successCount;
                 int refundedPoints = task.getDeductedPoints() - consumedPoints;
-
                 // 8. 返还多余点数
                 if (refundedPoints > 0) {
                     pointService.refundPoints(
@@ -179,7 +168,6 @@ public class BatchTaskServiceImpl implements BatchTaskService {
                             "批量任务返还点数：" + refundedPoints + "点"
                     );
                 }
-
                 // 9. 更新任务记录
                 task.setSuccessCount(successCount);
                 task.setConsumedPoints(consumedPoints);
@@ -189,9 +177,11 @@ public class BatchTaskServiceImpl implements BatchTaskService {
                 task.setCompletedAt(LocalDateTime.now());
                 task.setUpdatedAt(LocalDateTime.now());
                 batchTaskMapper.updateById(task);
-
                 log.info("批量任务完成：taskId={}, successCount={}, consumedPoints={}, refundedPoints={}",
                         taskId, successCount, consumedPoints, refundedPoints);
+                // 记录操作日志
+                operationLogService.log(EventType.BATCH_TASK_COMPLETE, taskId, task.getTaskNo(),
+                        Map.of("successCount", successCount, "consumedPoints", consumedPoints, "refundedPoints", refundedPoints));
             } finally {
                 lock.unlock();
             }

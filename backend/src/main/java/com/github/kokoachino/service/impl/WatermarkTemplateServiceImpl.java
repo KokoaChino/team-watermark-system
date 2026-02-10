@@ -22,12 +22,15 @@ import com.github.kokoachino.model.entity.WatermarkTemplate;
 import com.github.kokoachino.model.entity.WatermarkTemplateDraft;
 import com.github.kokoachino.model.vo.DraftVO;
 import com.github.kokoachino.model.vo.WatermarkTemplateVO;
+import com.github.kokoachino.model.enums.EventType;
+import com.github.kokoachino.service.OperationLogService;
 import com.github.kokoachino.service.WatermarkTemplateService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
@@ -48,6 +51,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
     private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
     private final LockUtils lockUtils;
+    private final OperationLogService operationLogService;
 
     @Override
     public List<WatermarkTemplateVO> getTemplateList(Integer teamId) {
@@ -83,6 +87,9 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         template.setCreatedBy(username);
         template.setUpdatedBy(username);
         templateMapper.insert(template);
+        // 记录操作日志
+        operationLogService.log(EventType.TEMPLATE_CREATE, template.getId(), dto.getName(),
+                Map.of("config", dto.getConfig()));
         return convertToVO(template);
     }
 
@@ -99,12 +106,17 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         if (!dto.getVersion().equals(template.getVersion())) {
             throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
         }
+        // 记录修改前的数据
+        String beforeData = template.getConfig();
         template.setName(dto.getName());
         template.setConfig(convertConfigToJson(dto.getConfig()));
         int affected = templateMapper.updateById(template);
         if (affected == 0) {
             throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
         }
+        // 记录操作日志
+        operationLogService.log(EventType.TEMPLATE_UPDATE, templateId, dto.getName(),
+                Map.of("beforeVersion", template.getVersion(), "afterVersion", template.getVersion() + 1));
         return convertToVO(template);
     }
 
@@ -119,7 +131,11 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         if (!template.getCreatedById().equals(userId) && !isLeader) {
             throw new BizException(ResultCode.NOT_TEMPLATE_CREATOR);
         }
+        String templateName = template.getName();
         templateMapper.deleteById(templateId);
+        // 记录操作日志
+        operationLogService.log(EventType.TEMPLATE_DELETE, templateId, templateName,
+                Map.of("deletedBy", isLeader ? "leader" : "creator"));
     }
 
     @Override
@@ -197,7 +213,6 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         // 检查是否存在冲突
         boolean hasConflict = checkConflict(draft);
         String conflictMessage = hasConflict ? "该模板已被他人修改或删除" : null;
-
         return convertToDraftVO(draft, hasConflict, conflictMessage);
     }
 

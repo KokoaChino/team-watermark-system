@@ -13,15 +13,15 @@ import lombok.Data;
  */
 @Data
 @Builder
-@Schema(description = "点数余额信息")
+@Schema(description = "团队点数余额信息")
 public class PointBalanceVO {
 
-    @Schema(description = "团队ID")
+    @Schema(description = "团队ID", example = "1")
     private Integer teamId;
 
-    @Schema(description = "团队名称")
+    @Schema(description = "团队名称", example = "设计团队A")
     private String teamName;
 
-    @Schema(description = "当前点数余额")
+    @Schema(description = "点数余额", example = "9850")
     private Integer balance;
 }

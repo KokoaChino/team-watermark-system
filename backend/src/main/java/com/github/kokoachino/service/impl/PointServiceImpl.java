@@ -7,8 +7,10 @@ import com.github.kokoachino.mapper.PointTransactionMapper;
 import com.github.kokoachino.mapper.TeamMapper;
 import com.github.kokoachino.model.entity.PointTransaction;
 import com.github.kokoachino.model.entity.Team;
+import com.github.kokoachino.model.enums.EventType;
 import com.github.kokoachino.model.vo.PointBalanceVO;
 import com.github.kokoachino.model.vo.PointTransactionVO;
+import com.github.kokoachino.service.OperationLogService;
 import com.github.kokoachino.service.PointService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +19,9 @@ import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -36,6 +40,7 @@ public class PointServiceImpl implements PointService {
     private final TeamMapper teamMapper;
     private final PointTransactionMapper pointTransactionMapper;
     private final RedissonClient redissonClient;
+    private final OperationLogService operationLogService;
 
     private static final String POINT_LOCK_PREFIX = "point:lock:";
 
@@ -93,6 +98,14 @@ public class PointServiceImpl implements PointService {
                 transaction.setUpdatedAt(LocalDateTime.now());
                 pointTransactionMapper.insert(transaction);
                 log.info("预扣点数成功：teamId={}, points={}, balanceAfter={}", teamId, points, balanceAfter);
+                // 记录操作日志
+                Map<String, Object> details = new HashMap<>();
+                details.put("points", points);
+                details.put("balanceBefore", balanceBefore);
+                details.put("balanceAfter", balanceAfter);
+                details.put("bizType", bizType);
+                details.put("bizId", bizId);
+                operationLogService.log(EventType.POINT_DEDUCT, null, description, details);
                 return true;
             } finally {
                 lock.unlock();
@@ -141,6 +154,14 @@ public class PointServiceImpl implements PointService {
                 transaction.setUpdatedAt(LocalDateTime.now());
                 pointTransactionMapper.insert(transaction);
                 log.info("返还点数成功：teamId={}, points={}, balanceAfter={}", teamId, points, balanceAfter);
+                // 记录操作日志
+                Map<String, Object> details = new HashMap<>();
+                details.put("points", points);
+                details.put("balanceBefore", balanceBefore);
+                details.put("balanceAfter", balanceAfter);
+                details.put("bizType", bizType);
+                details.put("bizId", bizId);
+                operationLogService.log(EventType.POINT_REFUND, null, description, details);
                 return true;
             } finally {
                 lock.unlock();
@@ -189,6 +210,14 @@ public class PointServiceImpl implements PointService {
                 transaction.setUpdatedAt(LocalDateTime.now());
                 pointTransactionMapper.insert(transaction);
                 log.info("充值点数成功：teamId={}, points={}, balanceAfter={}", teamId, points, balanceAfter);
+                // 记录操作日志
+                Map<String, Object> details = new HashMap<>();
+                details.put("points", points);
+                details.put("balanceBefore", balanceBefore);
+                details.put("balanceAfter", balanceAfter);
+                details.put("bizType", bizType);
+                details.put("bizId", bizId);
+                operationLogService.log(EventType.POINT_RECHARGE, null, description, details);
                 return true;
             } finally {
                 lock.unlock();

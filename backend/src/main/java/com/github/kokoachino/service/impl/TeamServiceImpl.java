@@ -11,12 +11,15 @@ import com.github.kokoachino.mapper.*;
 import com.github.kokoachino.model.dto.*;
 import com.github.kokoachino.model.entity.*;
 import com.github.kokoachino.model.vo.*;
+import com.github.kokoachino.model.enums.EventType;
+import com.github.kokoachino.service.OperationLogService;
 import com.github.kokoachino.service.TeamService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 
@@ -34,6 +37,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     private final TeamInviteCodeMapper inviteCodeMapper;
     private final TeamInviteRecordMapper inviteRecordMapper;
     private final UserMapper userMapper;
+    private final OperationLogService operationLogService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -147,7 +151,11 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         record.setUserId(userId);
         record.setUsername(username);
         inviteRecordMapper.insert(record);
-        // 11. 返回团队信息
+        // 11. 记录操作日志
+        Team team = this.getById(teamId);
+        operationLogService.log(EventType.TEAM_JOIN, teamId, team.getName(),
+                Map.of("inviteCode", rawCode, "previousTeam", "已退出原团队"));
+        // 12. 返回团队信息
         return buildTeamMemberVO(teamId, userId, username, TeamRole.MEMBER.getValue());
     }
 
@@ -217,9 +225,12 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (TeamRole.LEADER.getValue().equals(member.getRole()) && team.getLeaderId().equals(userId)) {
             throw new BizException(ResultCode.CANNOT_LEAVE_PERSONAL_TEAM);
         }
-        // 3. 删除团队成员关系
+        // 3. 记录操作日志
+        operationLogService.log(EventType.TEAM_LEAVE, team.getId(), team.getName(),
+                Map.of("role", member.getRole()));
+        // 4. 删除团队成员关系
         teamMemberMapper.deleteById(member.getId());
-        // 4. 创建新的个人团队
+        // 5. 创建新的个人团队
         createPersonalTeam(userId, username, 0);
     }
 

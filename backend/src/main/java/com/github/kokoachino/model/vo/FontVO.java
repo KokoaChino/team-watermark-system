@@ -17,24 +17,24 @@ import java.time.LocalDateTime;
 @Schema(description = "字体信息")
 public class FontVO {
 
-    @Schema(description = "字体ID")
+    @Schema(description = "字体ID", example = "1")
     private Integer id;
 
-    @Schema(description = "字体名称")
+    @Schema(description = "字体名称", example = "阿里巴巴普惠体")
     private String name;
 
-    @Schema(description = "字体文件URL")
+    @Schema(description = "字体文件URL", example = "https://minio.example.com/fonts/abc123.ttf")
     private String fontUrl;
 
-    @Schema(description = "是否系统字体")
+    @Schema(description = "是否系统字体", example = "true")
     private Boolean isSystemFont;
 
-    @Schema(description = "团队ID（系统字体为null）")
+    @Schema(description = "团队ID", example = "1")
     private Integer teamId;
 
-    @Schema(description = "上传人ID")
+    @Schema(description = "上传人ID", example = "2")
     private Integer uploadedBy;
 
-    @Schema(description = "创建时间")
+    @Schema(description = "创建时间", example = "2026-02-10T14:30:00")
     private LocalDateTime createdAt;
 }
