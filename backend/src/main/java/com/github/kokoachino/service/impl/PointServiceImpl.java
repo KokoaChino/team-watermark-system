@@ -1,13 +1,13 @@
 package com.github.kokoachino.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.kokoachino.common.enums.EventTypeEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.mapper.PointTransactionMapper;
 import com.github.kokoachino.mapper.TeamMapper;
 import com.github.kokoachino.model.entity.PointTransaction;
 import com.github.kokoachino.model.entity.Team;
-import com.github.kokoachino.model.enums.EventType;
 import com.github.kokoachino.model.vo.PointBalanceVO;
 import com.github.kokoachino.model.vo.PointTransactionVO;
 import com.github.kokoachino.service.OperationLogService;
@@ -105,7 +105,7 @@ public class PointServiceImpl implements PointService {
                 details.put("balanceAfter", balanceAfter);
                 details.put("bizType", bizType);
                 details.put("bizId", bizId);
-                operationLogService.log(EventType.POINT_DEDUCT, null, description, details);
+                operationLogService.log(EventTypeEnum.POINT_DEDUCT, null, description, details);
                 return true;
             } finally {
                 lock.unlock();
@@ -161,7 +161,7 @@ public class PointServiceImpl implements PointService {
                 details.put("balanceAfter", balanceAfter);
                 details.put("bizType", bizType);
                 details.put("bizId", bizId);
-                operationLogService.log(EventType.POINT_REFUND, null, description, details);
+                operationLogService.log(EventTypeEnum.POINT_REFUND, null, description, details);
                 return true;
             } finally {
                 lock.unlock();
@@ -217,7 +217,7 @@ public class PointServiceImpl implements PointService {
                 details.put("balanceAfter", balanceAfter);
                 details.put("bizType", bizType);
                 details.put("bizId", bizId);
-                operationLogService.log(EventType.POINT_RECHARGE, null, description, details);
+                operationLogService.log(EventTypeEnum.POINT_RECHARGE, null, description, details);
                 return true;
             } finally {
                 lock.unlock();

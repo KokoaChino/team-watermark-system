@@ -1,11 +1,11 @@
 package com.github.kokoachino.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.kokoachino.common.enums.EventTypeEnum;
 import com.github.kokoachino.common.util.UserContext;
 import com.github.kokoachino.mapper.OperationLogMapper;
-import com.github.kokoachino.model.dto.log.OperationLogQueryDTO;
+import com.github.kokoachino.model.dto.OperationLogQueryDTO;
 import com.github.kokoachino.model.entity.OperationLog;
-import com.github.kokoachino.model.enums.EventType;
 import com.github.kokoachino.model.vo.OperationLogVO;
 import com.github.kokoachino.model.vo.PageVO;
 import com.github.kokoachino.service.OperationLogService;
@@ -36,11 +36,11 @@ public class OperationLogServiceImpl implements OperationLogService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public void log(EventType eventType, Integer teamId, Integer userId, String username,
+    public void log(EventTypeEnum eventTypeEnum, Integer teamId, Integer userId, String username,
                     Integer targetId, String targetName, Object beforeData, Object afterData, Map<String, Object> details) {
         try {
             OperationLog operationLog = new OperationLog();
-            operationLog.setEventType(eventType.getCode());
+            operationLog.setEventType(eventTypeEnum.getCode());
             operationLog.setTeamId(teamId);
             operationLog.setUserId(userId);
             operationLog.setUsername(username);
@@ -72,12 +72,12 @@ public class OperationLogServiceImpl implements OperationLogService {
     }
 
     @Override
-    public void log(EventType eventType, Integer targetId, String targetName, Map<String, Object> details) {
+    public void log(EventTypeEnum eventTypeEnum, Integer targetId, String targetName, Map<String, Object> details) {
         try {
             Integer userId = UserContext.getUserId();
             String username = UserContext.getUser().getUsername();
             Integer teamId = UserContext.getUser().getTeamId();
-            log(eventType, teamId, userId, username, targetId, targetName, null, null, details);
+            log(eventTypeEnum, teamId, userId, username, targetId, targetName, null, null, details);
         } catch (Exception e) {
             log.error("记录操作日志失败", e);
         }
@@ -124,8 +124,8 @@ public class OperationLogServiceImpl implements OperationLogService {
         return OperationLogVO.builder()
                 .id(log.getId())
                 .eventType(log.getEventType())
-                .eventTypeDesc(EventType.valueOf(log.getEventType()).getDescription())
-                .category(EventType.valueOf(log.getEventType()).getCategory())
+                .eventTypeDesc(EventTypeEnum.valueOf(log.getEventType()).getDescription())
+                .category(EventTypeEnum.valueOf(log.getEventType()).getCategory())
                 .teamId(log.getTeamId())
                 .userId(log.getUserId())
                 .username(log.getUsername())

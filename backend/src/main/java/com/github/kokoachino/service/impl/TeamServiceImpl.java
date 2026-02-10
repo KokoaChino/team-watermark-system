@@ -2,8 +2,9 @@ package com.github.kokoachino.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.github.kokoachino.common.enums.InviteCodeStatus;
-import com.github.kokoachino.common.enums.TeamRole;
+import com.github.kokoachino.common.enums.EventTypeEnum;
+import com.github.kokoachino.common.enums.InviteCodeStatusEnum;
+import com.github.kokoachino.common.enums.TeamRoleEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.InviteCodeUtils;
@@ -11,7 +12,6 @@ import com.github.kokoachino.mapper.*;
 import com.github.kokoachino.model.dto.*;
 import com.github.kokoachino.model.entity.*;
 import com.github.kokoachino.model.vo.*;
-import com.github.kokoachino.model.enums.EventType;
 import com.github.kokoachino.service.OperationLogService;
 import com.github.kokoachino.service.TeamService;
 import lombok.RequiredArgsConstructor;
@@ -52,7 +52,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         TeamMember member = new TeamMember();
         member.setTeamId(team.getId());
         member.setUserId(userId);
-        member.setRole(TeamRole.LEADER.getValue());
+        member.setRole(TeamRoleEnum.LEADER.getValue());
         teamMemberMapper.insert(member);
         return team.getId();
     }
@@ -75,7 +75,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         inviteCode.setValidUntil(dto.getValidUntil());
         inviteCode.setMaxUses(dto.getMaxUses());
         inviteCode.setUsesCount(0);
-        inviteCode.setStatus(InviteCodeStatus.ACTIVE.getValue());
+        inviteCode.setStatus(InviteCodeStatusEnum.ACTIVE.getValue());
         inviteCodeMapper.insert(inviteCode);
         // 3. 获取团队名称
         Team team = this.getById(teamId);
@@ -109,7 +109,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             throw new BizException(ResultCode.INVITE_CODE_INVALID);
         }
         // 3. 校验邀请码状态
-        if (!InviteCodeStatus.ACTIVE.getValue().equals(inviteCode.getStatus())) {
+        if (!InviteCodeStatusEnum.ACTIVE.getValue().equals(inviteCode.getStatus())) {
             throw new BizException(ResultCode.INVITE_CODE_INVALID);
         }
         // 4. 校验是否过期
@@ -139,7 +139,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         TeamMember newMember = new TeamMember();
         newMember.setTeamId(teamId);
         newMember.setUserId(userId);
-        newMember.setRole(TeamRole.MEMBER.getValue());
+        newMember.setRole(TeamRoleEnum.MEMBER.getValue());
         teamMemberMapper.insert(newMember);
         // 9. 更新邀请码使用次数
         inviteCode.setUsesCount(inviteCode.getUsesCount() + 1);
@@ -153,10 +153,10 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         inviteRecordMapper.insert(record);
         // 11. 记录操作日志
         Team team = this.getById(teamId);
-        operationLogService.log(EventType.TEAM_JOIN, teamId, team.getName(),
+        operationLogService.log(EventTypeEnum.TEAM_JOIN, teamId, team.getName(),
                 Map.of("inviteCode", rawCode, "previousTeam", "已退出原团队"));
         // 12. 返回团队信息
-        return buildTeamMemberVO(teamId, userId, username, TeamRole.MEMBER.getValue());
+        return buildTeamMemberVO(teamId, userId, username, TeamRoleEnum.MEMBER.getValue());
     }
 
     @Override
@@ -169,7 +169,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (!inviteCode.getTeamId().equals(teamId)) {
             throw new BizException(ResultCode.FORBIDDEN);
         }
-        inviteCode.setStatus(InviteCodeStatus.INACTIVE.getValue());
+        inviteCode.setStatus(InviteCodeStatusEnum.INACTIVE.getValue());
         inviteCodeMapper.updateById(inviteCode);
     }
 
@@ -182,7 +182,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         );
         Team team = this.getById(teamId);
         return codes.stream().map(code -> {
-            String shareText = InviteCodeStatus.ACTIVE.getValue().equals(code.getStatus())
+            String shareText = InviteCodeStatusEnum.ACTIVE.getValue().equals(code.getStatus())
                     ? InviteCodeUtils.generateShareText(team.getName(), code.getCode())
                     : null;
             return InviteCodeVO.builder()
@@ -222,11 +222,11 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         }
         // 2. 检查是否是个人团队（队长不能退出自己的个人团队）
         Team team = this.getById(member.getTeamId());
-        if (TeamRole.LEADER.getValue().equals(member.getRole()) && team.getLeaderId().equals(userId)) {
+        if (TeamRoleEnum.LEADER.getValue().equals(member.getRole()) && team.getLeaderId().equals(userId)) {
             throw new BizException(ResultCode.CANNOT_LEAVE_PERSONAL_TEAM);
         }
         // 3. 记录操作日志
-        operationLogService.log(EventType.TEAM_LEAVE, team.getId(), team.getName(),
+        operationLogService.log(EventTypeEnum.TEAM_LEAVE, team.getId(), team.getName(),
                 Map.of("role", member.getRole()));
         // 4. 删除团队成员关系
         teamMemberMapper.deleteById(member.getId());
@@ -250,7 +250,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (targetUserId.equals(teamMemberMapper.selectOne(
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getTeamId, teamId)
-                        .eq(TeamMember::getRole, TeamRole.LEADER.getValue())
+                        .eq(TeamMember::getRole, TeamRoleEnum.LEADER.getValue())
         ).getUserId())) {
             throw new BizException(ResultCode.CANNOT_KICK_SELF);
         }
@@ -297,7 +297,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                         .eq(TeamMember::getUserId, userId)
                         .eq(TeamMember::getTeamId, teamId)
         );
-        return member != null && TeamRole.LEADER.getValue().equals(member.getRole());
+        return member != null && TeamRoleEnum.LEADER.getValue().equals(member.getRole());
     }
 
     private TeamMemberVO buildTeamMemberVO(Integer teamId, Integer userId, String username, String role) {

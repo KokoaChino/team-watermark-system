@@ -4,9 +4,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.github.kokoachino.model.entity.TeamInviteRecord;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import java.util.List;
 
+import java.util.List;
 
 /**
  * 团队邀请记录 Mapper 接口
@@ -23,6 +22,5 @@ public interface TeamInviteRecordMapper extends BaseMapper<TeamInviteRecord> {
      * @param inviteCodeId 邀请码ID
      * @return 邀请记录列表
      */
-    @Select("SELECT * FROM tw_team_invite_record WHERE invite_code_id = #{inviteCodeId} ORDER BY created_at DESC")
     List<TeamInviteRecord> selectByInviteCodeId(@Param("inviteCodeId") Integer inviteCodeId);
 }

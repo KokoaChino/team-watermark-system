@@ -41,10 +41,10 @@ public class ExcelParseResultVO {
         @Schema(description = "图片ID", example = "img001")
         private String imageId;
 
-        @Schema(description = "文字水印替换内容（key: 水印索引或标识, value: 替换文字）")
+        @Schema(description = "文字水印替换内容（key：水印索引或标识, value：替换文字）")
         private Map<String, String> textReplacements;
 
-        @Schema(description = "图片水印替换链接（key: 水印索引或标识, value: 图片URL）")
+        @Schema(description = "图片水印替换链接（key：水印索引或标识, value：图片URL）")
         private Map<String, String> imageReplacements;
 
         @Schema(description = "输出文件名", example = "product_001_watermarked.jpg")

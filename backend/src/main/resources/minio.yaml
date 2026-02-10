@@ -1,5 +1,5 @@
 minio:
   endpoint: http://localhost:9000
-  access-key: your-access-key
-  secret-key: your-secret-key
+  access-key: your-access-key # TODO
+  secret-key: your-secret-key # TODO
   bucket-name: watermark-system

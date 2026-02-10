@@ -1,7 +1,7 @@
 package com.github.kokoachino.service;
 
-import com.github.kokoachino.model.dto.log.OperationLogQueryDTO;
-import com.github.kokoachino.model.enums.EventType;
+import com.github.kokoachino.model.dto.OperationLogQueryDTO;
+import com.github.kokoachino.common.enums.EventTypeEnum;
 import com.github.kokoachino.model.vo.OperationLogVO;
 import com.github.kokoachino.model.vo.PageVO;
 import java.util.Map;
@@ -18,7 +18,7 @@ public interface OperationLogService {
     /**
      * 记录操作日志
      *
-     * @param eventType   事件类型
+     * @param eventTypeEnum   事件类型
      * @param teamId      团队ID
      * @param userId      用户ID
      * @param username    用户名
@@ -28,18 +28,18 @@ public interface OperationLogService {
      * @param afterData   操作后数据
      * @param details     详情
      */
-    void log(EventType eventType, Integer teamId, Integer userId, String username,
+    void log(EventTypeEnum eventTypeEnum, Integer teamId, Integer userId, String username,
              Integer targetId, String targetName, Object beforeData, Object afterData, Map<String, Object> details);
 
     /**
      * 简化的日志记录方法
      *
-     * @param eventType  事件类型
+     * @param eventTypeEnum  事件类型
      * @param targetId   目标ID
      * @param targetName 目标名称
      * @param details    详情
      */
-    void log(EventType eventType, Integer targetId, String targetName, Map<String, Object> details);
+    void log(EventTypeEnum eventTypeEnum, Integer targetId, String targetName, Map<String, Object> details);
 
     /**
      * 查询团队日志（分页）

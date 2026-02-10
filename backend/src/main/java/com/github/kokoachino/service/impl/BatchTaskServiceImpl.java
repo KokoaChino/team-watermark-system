@@ -1,13 +1,13 @@
 package com.github.kokoachino.service.impl;
 
+import com.github.kokoachino.common.enums.EventTypeEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.UserContext;
 import com.github.kokoachino.config.SystemProperties;
 import com.github.kokoachino.mapper.BatchTaskMapper;
-import com.github.kokoachino.model.dto.batch.SubmitBatchTaskDTO;
+import com.github.kokoachino.model.dto.SubmitBatchTaskDTO;
 import com.github.kokoachino.model.entity.BatchTask;
-import com.github.kokoachino.model.enums.EventType;
 import com.github.kokoachino.model.vo.BatchTaskVO;
 import com.github.kokoachino.service.BatchTaskService;
 import com.github.kokoachino.service.MinioService;
@@ -102,7 +102,7 @@ public class BatchTaskServiceImpl implements BatchTaskService {
                 log.info("批量任务提交成功：taskId={}, taskNo={}, imageCount={}, deductedPoints={}",
                         task.getId(), taskNo, dto.getImageCount(), totalPoints);
                 // 记录操作日志
-                operationLogService.log(EventType.BATCH_TASK_SUBMIT, task.getId(), taskNo,
+                operationLogService.log(EventTypeEnum.BATCH_TASK_SUBMIT, task.getId(), taskNo,
                         Map.of("imageCount", dto.getImageCount(), "deductedPoints", totalPoints, "description", dto.getDescription()));
                 return convertToVO(task);
             } finally {
@@ -180,7 +180,7 @@ public class BatchTaskServiceImpl implements BatchTaskService {
                 log.info("批量任务完成：taskId={}, successCount={}, consumedPoints={}, refundedPoints={}",
                         taskId, successCount, consumedPoints, refundedPoints);
                 // 记录操作日志
-                operationLogService.log(EventType.BATCH_TASK_COMPLETE, taskId, task.getTaskNo(),
+                operationLogService.log(EventTypeEnum.BATCH_TASK_COMPLETE, taskId, task.getTaskNo(),
                         Map.of("successCount", successCount, "consumedPoints", consumedPoints, "refundedPoints", refundedPoints));
             } finally {
                 lock.unlock();

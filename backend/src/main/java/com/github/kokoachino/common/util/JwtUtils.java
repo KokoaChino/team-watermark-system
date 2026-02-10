@@ -1,6 +1,6 @@
 package com.github.kokoachino.common.util;
 
-import com.github.kokoachino.common.enums.TokenType;
+import com.github.kokoachino.common.enums.TokenTypeEnum;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -44,7 +44,7 @@ public class JwtUtils {
      */
     public String generateToken(Integer userId) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("type", TokenType.ACCESS.getValue());
+        claims.put("type", TokenTypeEnum.ACCESS.getValue());
         return Jwts.builder()
                 .claims(claims)
                 .subject(String.valueOf(userId))

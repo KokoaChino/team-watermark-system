@@ -1,6 +1,6 @@
 package com.github.kokoachino.config;
 
-import com.github.kokoachino.common.enums.BlackListType;
+import com.github.kokoachino.common.enums.BlackListTypeEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.JwtUtils;
@@ -41,7 +41,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         token = token.substring(7);
         // 1. 校验 Token 是否在黑名单
         long count = blackListMapper.selectCount(new LambdaQueryWrapper<BlackList>()
-                .eq(BlackList::getType, BlackListType.TOKEN.getValue())
+                .eq(BlackList::getType, BlackListTypeEnum.TOKEN.getValue())
                 .eq(BlackList::getValue, token));
         if (count > 0) {
             throw new BizException(ResultCode.UNAUTHORIZED);

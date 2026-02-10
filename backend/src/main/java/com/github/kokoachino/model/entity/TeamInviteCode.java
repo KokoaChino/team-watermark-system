@@ -1,7 +1,7 @@
 package com.github.kokoachino.model.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
-import com.github.kokoachino.common.enums.InviteCodeStatus;
+import com.github.kokoachino.common.enums.InviteCodeStatusEnum;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -45,7 +45,7 @@ public class TeamInviteCode {
     private Integer usesCount;
 
     /**
-     * @see InviteCodeStatus
+     * @see InviteCodeStatusEnum
      * 状态
      */
     private String status;

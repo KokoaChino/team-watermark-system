@@ -1,8 +1,8 @@
 package com.github.kokoachino.controller;
 
 import com.github.kokoachino.common.result.Result;
-import com.github.kokoachino.model.dto.log.OperationLogQueryDTO;
-import com.github.kokoachino.model.enums.EventType;
+import com.github.kokoachino.model.dto.OperationLogQueryDTO;
+import com.github.kokoachino.common.enums.EventTypeEnum;
 import com.github.kokoachino.model.vo.OperationLogVO;
 import com.github.kokoachino.model.vo.PageVO;
 import com.github.kokoachino.service.OperationLogService;
@@ -40,7 +40,7 @@ public class OperationLogController {
     @GetMapping("/event-types")
     @Operation(summary = "获取事件类型列表", description = "获取所有支持的事件类型，用于筛选")
     public Result<List<Map<String, String>>> getEventTypes() {
-        List<Map<String, String>> types = Arrays.stream(EventType.values())
+        List<Map<String, String>> types = Arrays.stream(EventTypeEnum.values())
                 .map(type -> Map.of(
                         "code", type.getCode(),
                         "description", type.getDescription(),

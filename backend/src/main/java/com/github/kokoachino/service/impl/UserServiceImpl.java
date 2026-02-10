@@ -5,10 +5,10 @@ import cn.hutool.crypto.digest.BCrypt;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.github.kokoachino.common.enums.BlackListType;
-import com.github.kokoachino.common.enums.LoginType;
-import com.github.kokoachino.common.enums.TeamRole;
-import com.github.kokoachino.common.enums.VerificationCodeType;
+import com.github.kokoachino.common.enums.BlackListTypeEnum;
+import com.github.kokoachino.common.enums.LoginTypeEnum;
+import com.github.kokoachino.common.enums.TeamRoleEnum;
+import com.github.kokoachino.common.enums.VerificationCodeTypeEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.*;
@@ -70,19 +70,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (user == null) {
             throw new BizException(ResultCode.USER_NOT_FOUND);
         }
-        LoginType loginType = LoginType.fromValue(loginDTO.getLoginType());
-        if (loginType == null) {
+        LoginTypeEnum loginTypeEnum = LoginTypeEnum.fromValue(loginDTO.getLoginType());
+        if (loginTypeEnum == null) {
             throw new BizException(ResultCode.UNSUPPORTED_LOGIN_TYPE);
         }
-        if (loginType == LoginType.PASSWORD) {
+        if (loginTypeEnum == LoginTypeEnum.PASSWORD) {
             // 密码登录
             if (!BCrypt.checkpw(loginDTO.getPassword(), user.getPassword())) {
                 throw new BizException(ResultCode.PASSWORD_ERROR);
             }
-        } else if (loginType == LoginType.CAPTCHA) {
+        } else if (loginTypeEnum == LoginTypeEnum.CAPTCHA) {
             // 验证码登录
             String emailCode = loginDTO.getEmailCode();
-            String redisKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeType.LOGIN.getValue(), user.getEmail());
+            String redisKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeTypeEnum.LOGIN.getValue(), user.getEmail());
             String cachedCode = redisUtils.get(redisKey);
             if (cachedCode == null || !cachedCode.equals(emailCode)) {
                 throw new BizException(ResultCode.EMAIL_CODE_ERROR);
@@ -109,7 +109,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         redisUtils.delete(redisCaptchaKey);
         // 2. 校验邮箱验证码
-        String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeType.REGISTER.getValue(), registerDTO.getEmail());
+        String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeTypeEnum.REGISTER.getValue(), registerDTO.getEmail());
         String cachedEmailCode = redisUtils.get(emailCodeKey);
         if (cachedEmailCode == null || !cachedEmailCode.equals(registerDTO.getEmailCode())) {
             throw new BizException(ResultCode.EMAIL_CODE_ERROR);
@@ -131,7 +131,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         this.save(user);
         // 5. 检查黑名单以确定初始点数
         long isBlacklisted = blackListMapper.selectCount(new LambdaQueryWrapper<BlackList>()
-                .eq(BlackList::getType, BlackListType.EMAIL.getValue())
+                .eq(BlackList::getType, BlackListTypeEnum.EMAIL.getValue())
                 .eq(BlackList::getValue, registerDTO.getEmail()));
         int initialPoints = isBlacklisted > 0 ? 0 : systemProperties.getInitialPoints();
         // 6. 创建个人团队
@@ -141,7 +141,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public void forgotPassword(ForgotPasswordDTO forgotPasswordDTO) {
         // 1. 校验邮箱验证码
-        String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeType.FORGOT_PASSWORD.getValue(), forgotPasswordDTO.getEmail());
+        String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeTypeEnum.FORGOT_PASSWORD.getValue(), forgotPasswordDTO.getEmail());
         String cachedEmailCode = redisUtils.get(emailCodeKey);
         if (cachedEmailCode == null || !cachedEmailCode.equals(forgotPasswordDTO.getCode())) {
             throw new BizException(ResultCode.EMAIL_CODE_ERROR);
@@ -160,7 +160,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public void sendVerificationCode(SendCodeDTO sendCodeDTO) {
         String code = RandomUtil.randomNumbers(6);
         String typeValue = sendCodeDTO.getType();
-        VerificationCodeType type = VerificationCodeType.fromValue(typeValue);
+        VerificationCodeTypeEnum type = VerificationCodeTypeEnum.fromValue(typeValue);
         if (type == null) {
             throw new BizException(ResultCode.VALIDATE_FAILED);
         }
@@ -235,7 +235,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             token = token.substring(7);
             // 将 Token 加入黑名单
             BlackList blackList = new BlackList();
-            blackList.setType(BlackListType.TOKEN.getValue());
+            blackList.setType(BlackListTypeEnum.TOKEN.getValue());
             blackList.setValue(token);
             blackListMapper.insert(blackList);
         }
@@ -258,7 +258,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 // 使用团队锁
                 String teamLockKey = LockUtils.getTeamLockKey(teamId);
                 lockUtils.executeWithLock(teamLockKey, () -> {
-                    if (TeamRole.LEADER.getValue().equals(member.getRole())) {
+                    if (TeamRoleEnum.LEADER.getValue().equals(member.getRole())) {
                         // 队长逻辑：查找其他成员
                         List<TeamMember> others = teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
                                 .eq(TeamMember::getTeamId, teamId)
@@ -270,7 +270,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                         } else {
                             // 转移队长身份给最早加入的成员
                             TeamMember nextLeader = others.getFirst();
-                            nextLeader.setRole(TeamRole.LEADER.getValue());
+                            nextLeader.setRole(TeamRoleEnum.LEADER.getValue());
                             teamMemberMapper.updateById(nextLeader);
 
                             Team team = teamService.getById(teamId);
@@ -286,7 +286,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             this.removeById(userId);
             // 3. 邮箱加入黑名单防止刷点数
             BlackList blackList = new BlackList();
-            blackList.setType(BlackListType.EMAIL.getValue());
+            blackList.setType(BlackListTypeEnum.EMAIL.getValue());
             blackList.setValue(user.getEmail());
             blackListMapper.insert(blackList);
             // 4. 清除用户缓存
@@ -362,7 +362,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 throw new BizException(ResultCode.SAME_EMAIL);
             }
             // 验证邮箱验证码
-            String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeType.UPDATE_EMAIL.getValue(), dto.getNewEmail());
+            String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeTypeEnum.UPDATE_EMAIL.getValue(), dto.getNewEmail());
             String cachedCode = redisUtils.get(emailCodeKey);
             if (cachedCode == null || !cachedCode.equals(dto.getEmailCode())) {
                 throw new BizException(ResultCode.EMAIL_CODE_ERROR);
@@ -389,7 +389,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             if (token != null && token.startsWith("Bearer ")) {
                 token = token.substring(7);
                 BlackList blackList = new BlackList();
-                blackList.setType(BlackListType.TOKEN.getValue());
+                blackList.setType(BlackListTypeEnum.TOKEN.getValue());
                 blackList.setValue(token);
                 blackListMapper.insert(blackList);
             }

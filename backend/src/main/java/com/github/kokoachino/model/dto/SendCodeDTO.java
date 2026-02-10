@@ -1,6 +1,6 @@
 package com.github.kokoachino.model.dto;
 
-import com.github.kokoachino.common.enums.VerificationCodeType;
+import com.github.kokoachino.common.enums.VerificationCodeTypeEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -23,7 +23,7 @@ public class SendCodeDTO {
     private String email;
 
     /**
-     * @see VerificationCodeType
+     * @see VerificationCodeTypeEnum
      */
     @NotBlank(message = "业务类型不能为空")
     @Schema(description = "验证码类型", requiredMode = Schema.RequiredMode.REQUIRED, example = "register")

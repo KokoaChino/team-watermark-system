@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.kokoachino.common.enums.LockAction;
+import com.github.kokoachino.common.enums.LockActionEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.LockUtils;
@@ -15,14 +15,14 @@ import com.github.kokoachino.model.dto.CreateTemplateDTO;
 import com.github.kokoachino.model.dto.SaveDraftDTO;
 import com.github.kokoachino.model.dto.SubmitDraftDTO;
 import com.github.kokoachino.model.dto.UpdateTemplateDTO;
-import com.github.kokoachino.model.dto.watermark.BaseConfigDTO;
-import com.github.kokoachino.model.dto.watermark.WatermarkConfigDTO;
+import com.github.kokoachino.model.dto.BaseConfigDTO;
+import com.github.kokoachino.model.dto.WatermarkConfigDTO;
 import com.github.kokoachino.model.entity.User;
 import com.github.kokoachino.model.entity.WatermarkTemplate;
 import com.github.kokoachino.model.entity.WatermarkTemplateDraft;
 import com.github.kokoachino.model.vo.DraftVO;
 import com.github.kokoachino.model.vo.WatermarkTemplateVO;
-import com.github.kokoachino.model.enums.EventType;
+import com.github.kokoachino.common.enums.EventTypeEnum;
 import com.github.kokoachino.service.OperationLogService;
 import com.github.kokoachino.service.WatermarkTemplateService;
 import lombok.RequiredArgsConstructor;
@@ -88,7 +88,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         template.setUpdatedBy(username);
         templateMapper.insert(template);
         // 记录操作日志
-        operationLogService.log(EventType.TEMPLATE_CREATE, template.getId(), dto.getName(),
+        operationLogService.log(EventTypeEnum.TEMPLATE_CREATE, template.getId(), dto.getName(),
                 Map.of("config", dto.getConfig()));
         return convertToVO(template);
     }
@@ -115,7 +115,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
             throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
         }
         // 记录操作日志
-        operationLogService.log(EventType.TEMPLATE_UPDATE, templateId, dto.getName(),
+        operationLogService.log(EventTypeEnum.TEMPLATE_UPDATE, templateId, dto.getName(),
                 Map.of("beforeVersion", template.getVersion(), "afterVersion", template.getVersion() + 1));
         return convertToVO(template);
     }
@@ -134,7 +134,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         String templateName = template.getName();
         templateMapper.deleteById(templateId);
         // 记录操作日志
-        operationLogService.log(EventType.TEMPLATE_DELETE, templateId, templateName,
+        operationLogService.log(EventTypeEnum.TEMPLATE_DELETE, templateId, templateName,
                 Map.of("deletedBy", isLeader ? "leader" : "creator"));
     }
 
@@ -178,7 +178,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
     @Transactional(rollbackFor = Exception.class)
     public DraftVO saveDraft(Integer userId, SaveDraftDTO dto) {
         return lockUtils.executeWithLock(
-                LockUtils.getLockKey(LockAction.DRAFT_SAVE, userId),
+                LockUtils.getLockKey(LockActionEnum.DRAFT_SAVE, userId),
                 () -> {
                     // 查询用户当前草稿
                     WatermarkTemplateDraft draft = draftMapper.selectByUserId(userId);
@@ -220,7 +220,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
     @Transactional(rollbackFor = Exception.class)
     public WatermarkTemplateVO submitDraft(Integer userId, String username, Integer teamId, SubmitDraftDTO dto) {
         return lockUtils.executeWithLock(
-                LockUtils.getLockKey(LockAction.TEMPLATE_SUBMIT, userId),
+                LockUtils.getLockKey(LockActionEnum.TEMPLATE_SUBMIT, userId),
                 () -> {
                     WatermarkTemplateDraft draft = draftMapper.selectByUserId(userId);
                     if (draft == null) {

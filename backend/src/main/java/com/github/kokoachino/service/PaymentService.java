@@ -1,6 +1,6 @@
 package com.github.kokoachino.service;
 
-import com.github.kokoachino.model.dto.batch.CreatePaymentOrderDTO;
+import com.github.kokoachino.model.dto.CreatePaymentOrderDTO;
 import com.github.kokoachino.model.vo.PaymentOrderVO;
 import java.util.Map;
 

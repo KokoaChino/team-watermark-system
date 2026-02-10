@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.kokoachino.mapper.WatermarkTemplateDraftMapper">
+
+    <!-- 根据用户ID查询草稿 -->
+    <select id="selectByUserId" resultType="com.github.kokoachino.model.entity.WatermarkTemplateDraft">
+        SELECT * FROM tw_watermark_template_draft WHERE user_id = #{userId}
+    </select>
+
+</mapper>

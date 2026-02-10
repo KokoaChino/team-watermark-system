@@ -1,6 +1,11 @@
 # 开发环境专用配置
 server:
   port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 spring:
   # 数据源配置

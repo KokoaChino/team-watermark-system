@@ -1,6 +1,6 @@
 package com.github.kokoachino.model.vo;
 
-import com.github.kokoachino.model.dto.watermark.WatermarkConfigDTO;
+import com.github.kokoachino.model.dto.WatermarkConfigDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;

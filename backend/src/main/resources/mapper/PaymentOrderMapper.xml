@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.kokoachino.mapper.PaymentOrderMapper">
+
+    <!-- 根据订单号查询 -->
+    <select id="selectByOrderNo" resultType="com.github.kokoachino.model.entity.PaymentOrder">
+        SELECT * FROM tw_payment_order WHERE order_no = #{orderNo}
+    </select>
+
+</mapper>

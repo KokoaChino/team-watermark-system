@@ -13,7 +13,7 @@ import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.config.AlipayConfig;
 import com.github.kokoachino.config.SystemProperties;
 import com.github.kokoachino.mapper.PaymentOrderMapper;
-import com.github.kokoachino.model.dto.batch.CreatePaymentOrderDTO;
+import com.github.kokoachino.model.dto.CreatePaymentOrderDTO;
 import com.github.kokoachino.model.entity.PaymentOrder;
 import com.github.kokoachino.model.vo.PaymentOrderVO;
 import com.github.kokoachino.service.PaymentService;

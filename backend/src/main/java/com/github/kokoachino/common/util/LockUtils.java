@@ -1,6 +1,6 @@
 package com.github.kokoachino.common.util;
 
-import com.github.kokoachino.common.enums.LockAction;
+import com.github.kokoachino.common.enums.LockActionEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import lombok.RequiredArgsConstructor;
@@ -40,14 +40,14 @@ public class LockUtils {
      * 获取用户锁的 Key
      */
     public static String getUserLockKey(Integer userId) {
-        return LockAction.getLockKey(LockAction.USER_OPERATION, userId);
+        return LockActionEnum.getLockKey(LockActionEnum.USER_OPERATION, userId);
     }
 
     /**
      * 获取团队锁的 Key
      */
     public static String getTeamLockKey(Integer teamId) {
-        return LockAction.getLockKey(LockAction.TEAM_OPERATION, teamId);
+        return LockActionEnum.getLockKey(LockActionEnum.TEAM_OPERATION, teamId);
     }
 
     /**
@@ -57,8 +57,8 @@ public class LockUtils {
      * @param id     对象ID
      * @return 锁的Key
      */
-    public static String getLockKey(LockAction action, Object id) {
-        return LockAction.getLockKey(action, id);
+    public static String getLockKey(LockActionEnum action, Object id) {
+        return LockActionEnum.getLockKey(action, id);
     }
 
     /**

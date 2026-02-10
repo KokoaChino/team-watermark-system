@@ -1,7 +1,7 @@
 package com.github.kokoachino.controller;
 
 import com.github.kokoachino.common.result.Result;
-import com.github.kokoachino.model.dto.batch.SubmitBatchTaskDTO;
+import com.github.kokoachino.model.dto.SubmitBatchTaskDTO;
 import com.github.kokoachino.model.vo.BatchTaskVO;
 import com.github.kokoachino.service.BatchTaskService;
 import io.swagger.v3.oas.annotations.Operation;

@@ -1,6 +1,6 @@
 package com.github.kokoachino.model.dto;
 
-import com.github.kokoachino.common.enums.LoginType;
+import com.github.kokoachino.common.enums.LoginTypeEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -31,7 +31,7 @@ public class LoginDTO {
     private String emailCode;
 
     /**
-     * @see LoginType
+     * @see LoginTypeEnum
      */
     @NotBlank(message = "登录类型不能为空")
     @Schema(description = "登录类型", requiredMode = Schema.RequiredMode.REQUIRED, example = "password")

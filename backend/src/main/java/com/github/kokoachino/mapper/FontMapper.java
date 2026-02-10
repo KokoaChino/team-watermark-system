@@ -4,9 +4,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.github.kokoachino.model.entity.Font;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-import java.util.List;
 
+import java.util.List;
 
 /**
  * 字体 Mapper 接口
@@ -23,7 +22,6 @@ public interface FontMapper extends BaseMapper<Font> {
      * @param teamId 团队ID
      * @return 字体列表
      */
-    @Select("SELECT * FROM tw_font WHERE team_id IS NULL OR team_id = #{teamId} ORDER BY created_at DESC")
     List<Font> selectAvailableFonts(@Param("teamId") Integer teamId);
 
     /**
@@ -33,6 +31,5 @@ public interface FontMapper extends BaseMapper<Font> {
      * @param teamId 团队ID
      * @return 字体
      */
-    @Select("SELECT * FROM tw_font WHERE name = #{name} AND (team_id IS NULL OR team_id = #{teamId}) LIMIT 1")
     Font selectByNameAndTeam(@Param("name") String name, @Param("teamId") Integer teamId);
 }

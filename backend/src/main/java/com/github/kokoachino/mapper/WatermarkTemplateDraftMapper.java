@@ -4,8 +4,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.github.kokoachino.model.entity.WatermarkTemplateDraft;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
-
 
 /**
  * 水印模板草稿 Mapper 接口
@@ -22,6 +20,5 @@ public interface WatermarkTemplateDraftMapper extends BaseMapper<WatermarkTempla
      * @param userId 用户ID
      * @return 草稿
      */
-    @Select("SELECT * FROM tw_watermark_template_draft WHERE user_id = #{userId}")
     WatermarkTemplateDraft selectByUserId(@Param("userId") Integer userId);
 }

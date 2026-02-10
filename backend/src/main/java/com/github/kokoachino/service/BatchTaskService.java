@@ -1,6 +1,6 @@
 package com.github.kokoachino.service;
 
-import com.github.kokoachino.model.dto.batch.SubmitBatchTaskDTO;
+import com.github.kokoachino.model.dto.SubmitBatchTaskDTO;
 import com.github.kokoachino.model.vo.BatchTaskVO;
 import org.springframework.web.multipart.MultipartFile;
 

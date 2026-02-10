@@ -1,7 +1,7 @@
 package com.github.kokoachino.controller;
 
 import com.github.kokoachino.common.result.Result;
-import com.github.kokoachino.model.dto.batch.CreatePaymentOrderDTO;
+import com.github.kokoachino.model.dto.CreatePaymentOrderDTO;
 import com.github.kokoachino.model.vo.PaymentOrderVO;
 import com.github.kokoachino.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
