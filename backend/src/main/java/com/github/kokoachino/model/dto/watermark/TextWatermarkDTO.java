@@ -1,6 +1,8 @@
 package com.github.kokoachino.model.dto.watermark;
 
+import com.github.kokoachino.model.vo.FontVO;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -22,9 +24,10 @@ public class TextWatermarkDTO extends WatermarkBaseDTO {
     @Schema(description = "文字内容", example = "版权所有")
     private String content;
 
-    @NotBlank(message = "字体不能为空")
-    @Schema(description = "字体名称", example = "Arial")
-    private String fontFamily;
+    @NotNull(message = "字体信息不能为空")
+    @Valid
+    @Schema(description = "字体信息（包含名称和MinIO Key）")
+    private FontVO font;
 
     @NotNull(message = "字体大小不能为空")
     @Schema(description = "字体大小（像素）", example = "24")
@@ -36,8 +39,8 @@ public class TextWatermarkDTO extends WatermarkBaseDTO {
     @Schema(description = "是否粗体", example = "false")
     private Boolean bold;
 
-    @Schema(description = "是否斜体", example = "false")
-    private Boolean italic;
+    @Schema(description = "倾斜角度（度），0表示正常，正值顺时针倾斜，负值逆时针倾斜", example = "15.0")
+    private Double skewAngle;
 
     @Schema(description = "描边配置")
     private StrokeDTO stroke;
