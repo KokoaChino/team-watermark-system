@@ -1,4 +1,4 @@
-package com.github.kokoachino.model.enums;
+package com.github.kokoachino.common.enums;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;

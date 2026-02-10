@@ -1,6 +1,6 @@
 package com.github.kokoachino.model.dto.watermark;
 
-import com.github.kokoachino.model.enums.CoordinateType;
+import com.github.kokoachino.common.enums.CoordinateType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;

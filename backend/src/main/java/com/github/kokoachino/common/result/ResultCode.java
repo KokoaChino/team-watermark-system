@@ -57,7 +57,27 @@ public enum ResultCode {
     FONT_NOT_FOUND(3151, "字体不存在"),
     FONT_NAME_EXIST(3152, "字体名称已存在"),
     FONT_FILE_INVALID(3153, "字体文件格式不正确，仅支持.ttf和.otf格式"),
-    FONT_UPLOAD_FAILED(3154, "字体上传失败");
+    FONT_UPLOAD_FAILED(3154, "字体上传失败"),
+
+    // 批量任务相关错误码 (3201-3300)
+    BATCH_TASK_NOT_FOUND(3201, "批量任务不存在"),
+    BATCH_TASK_SUBMIT_FAILED(3202, "任务提交失败"),
+    EXCEL_PARSE_ERROR(3203, "Excel解析失败"),
+    EXCEL_STRUCTURE_INVALID(3204, "Excel结构不正确"),
+    IMAGE_NOT_FOUND_IN_EXCEL(3205, "Excel中未找到对应的图片配置"),
+    POINTS_NOT_ENOUGH(3206, "团队点数不足"),
+    TASK_ALREADY_COMPLETED(3207, "任务已完成，不能重复操作"),
+    TASK_ITEM_NOT_FOUND(3208, "任务明细不存在"),
+
+    // 点数相关错误码 (3301-3350)
+    POINT_TRANSACTION_FAILED(3301, "点数交易失败"),
+
+    // 支付相关错误码 (3351-3400)
+    PAYMENT_ORDER_NOT_FOUND(3351, "支付订单不存在"),
+    PAYMENT_CREATE_FAILED(3352, "创建支付订单失败"),
+    PAYMENT_VERIFY_FAILED(3353, "支付验证失败"),
+    PAYMENT_ALREADY_PAID(3354, "订单已支付"),
+    PAYMENT_AMOUNT_INVALID(3355, "支付金额无效");
 
     private final int code;
     private final String message;

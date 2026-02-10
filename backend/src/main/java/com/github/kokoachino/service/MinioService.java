@@ -52,4 +52,14 @@ public interface MinioService {
      * @return 文件流
      */
     InputStream downloadFile(String objectKey);
+
+    /**
+     * 获取文件流（别名方法，与 downloadFile 相同）
+     *
+     * @param objectKey 对象Key
+     * @return 文件流
+     */
+    default InputStream getFileStream(String objectKey) {
+        return downloadFile(objectKey);
+    }
 }

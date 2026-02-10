@@ -2,6 +2,8 @@
 system:
   # 初始点数
   initial-points: 10000
+  # 点数单价（元/点）
+  point-price: 0.01
   # 图形验证码配置
   captcha:
     # 验证码宽度
@@ -18,6 +20,12 @@ system:
   email-code:
     # 有效期（分钟）
     expiration: 5
+  # 批量任务配置
+  batch-task:
+    # 结果ZIP文件有效期（小时）
+    result-zip-expiry: 24
+    # 单个任务最大图片数量
+    max-images-per-task: 1000
 
 # JWT 配置
 jwt:

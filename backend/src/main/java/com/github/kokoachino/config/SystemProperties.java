@@ -22,6 +22,11 @@ public class SystemProperties {
     private Integer initialPoints = 10000;
 
     /**
+     * 点数单价（元/点）
+     */
+    private Double pointPrice = 0.01;
+
+    /**
      * 图形验证码配置
      */
     private CaptchaConfig captcha = new CaptchaConfig();
@@ -30,6 +35,11 @@ public class SystemProperties {
      * 邮箱验证码配置
      */
     private EmailCodeConfig emailCode = new EmailCodeConfig();
+
+    /**
+     * 批量任务配置
+     */
+    private BatchTaskConfig batchTask = new BatchTaskConfig();
 
     @Data
     public static class CaptchaConfig {
@@ -65,5 +75,18 @@ public class SystemProperties {
          * 有效期（分钟）
          */
         private Integer expiration = 5;
+    }
+
+    @Data
+    public static class BatchTaskConfig {
+        /**
+         * 结果ZIP文件有效期（小时）
+         */
+        private Integer resultZipExpiry = 24;
+
+        /**
+         * 单个任务最大图片数量
+         */
+        private Integer maxImagesPerTask = 1000;
     }
 }
