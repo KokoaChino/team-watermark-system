@@ -14,7 +14,7 @@ import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.*;
 import com.github.kokoachino.config.SystemProperties;
 import com.github.kokoachino.model.dto.*;
-import com.github.kokoachino.config.RabbitConfig;
+import com.github.kokoachino.common.util.AsyncTaskUtils;
 import com.github.kokoachino.mapper.BlackListMapper;
 import com.github.kokoachino.mapper.TeamMemberMapper;
 import com.github.kokoachino.mapper.UserMapper;
@@ -28,7 +28,6 @@ import com.github.kokoachino.service.TeamService;
 import com.github.kokoachino.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -57,8 +56,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private final BlackListMapper blackListMapper;
     private final CaptchaUtils captchaUtils;
     private final LockUtils lockUtils;
+    private final AsyncTaskUtils asyncTaskUtils;
+    private final MailUtils mailUtils;
     private final SystemProperties systemProperties;
-    private final AmqpTemplate amqpTemplate;
 
     @Override
     public UserVO login(LoginDTO loginDTO) {
@@ -200,13 +200,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             </body>
             </html>
             """.formatted(type.getDesc(), code, systemProperties.getEmailCode().getExpiration());
-        MailMessage mailMessage = MailMessage.builder()
-                .to(sendCodeDTO.getEmail())
-                .subject(subject)
-                .content(htmlContent)
-                .isHtml(true)
-                .build();
-        amqpTemplate.convertAndSend(RabbitConfig.MAIL_QUEUE, mailMessage);
+        // 异步发送邮件
+        asyncTaskUtils.execute(() -> {
+            try {
+                mailUtils.sendHtmlMail(sendCodeDTO.getEmail(), subject, htmlContent);
+            } catch (Exception e) {
+                log.error("邮件发送失败", e);
+            }
+        });
     }
 
     @Override

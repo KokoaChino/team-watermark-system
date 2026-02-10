@@ -7,6 +7,5 @@ spring:
       - optional:classpath:redis.yaml
       - optional:classpath:mail.yaml
       - optional:classpath:alipay.yaml
-      - optional:classpath:mq.yaml
       - optional:classpath:system.yaml
       - optional:classpath:minio.yaml
