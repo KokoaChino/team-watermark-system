@@ -61,7 +61,6 @@ public class OperationLogServiceImpl implements OperationLogService {
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
                 operationLog.setIpAddress(getClientIp(request));
-                operationLog.setUserAgent(request.getHeader("User-Agent"));
             }
             operationLog.setCreatedAt(LocalDateTime.now());
             operationLog.setCreatedBy(username);

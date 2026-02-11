@@ -51,7 +51,7 @@ public class AuthController {
     }
 
     @PostMapping("/send-code")
-    @Operation(summary = "发送验证码", description = "发送邮箱验证码（注册、登录、找回密码）")
+    @Operation(summary = "发送验证码", description = "发送邮箱验证码（注册、登录、找回密码、修改邮箱）")
     public Result<Object> sendCode(@Valid @RequestBody SendCodeDTO sendCodeDTO) {
         userService.sendVerificationCode(sendCodeDTO);
         return Result.success(null, "验证码已发送");

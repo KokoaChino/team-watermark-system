@@ -16,7 +16,7 @@ import lombok.Data;
 @Schema(description = "验证码信息")
 public class CaptchaVO {
 
-    @Schema(description = "验证码Key", example = "captcha:abc123")
+    @Schema(description = "验证码Key", example = "995be8c3-d941-4a2b-8d4b-0a487abf75b9")
     private String key;
 
     @Schema(description = "验证码图片Base64", example = "data:image/png;base64,iVBORw0KGgo...")

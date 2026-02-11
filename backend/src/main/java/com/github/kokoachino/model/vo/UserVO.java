@@ -35,6 +35,6 @@ public class UserVO {
     /**
      * @see TeamRoleEnum
      */
-    @Schema(description = "团队角色")
+    @Schema(description = "团队角色", example = "member")
     private String teamRole;
 }

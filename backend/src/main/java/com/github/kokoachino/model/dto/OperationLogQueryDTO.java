@@ -24,12 +24,12 @@ public class OperationLogQueryDTO {
     @Schema(description = "事件类型", example = "TEMPLATE_CREATE")
     private String eventType;
 
-    @Schema(description = "操作用户ID")
+    @Schema(description = "操作用户 ID", example = "1")
     private Integer userId;
 
-    @Schema(description = "开始时间")
+    @Schema(description = "开始时间", example = "2026-02-10T14:30:00")
     private LocalDateTime startTime;
 
-    @Schema(description = "结束时间")
+    @Schema(description = "结束时间", example = "2026-02-11T14:30:00")
     private LocalDateTime endTime;
 }

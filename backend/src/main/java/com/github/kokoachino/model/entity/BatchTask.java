@@ -1,8 +1,6 @@
 package com.github.kokoachino.model.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -67,7 +65,7 @@ public class BatchTask {
     private Integer refundedPoints;
 
     /**
-     * 结果ZIP文件的MinIO Key
+     * 结果 ZIP 文件的 MinIO Key
      */
     private String resultZipKey;
 
@@ -81,7 +79,15 @@ public class BatchTask {
      */
     private LocalDateTime completedAt;
 
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
+
+    @TableField(fill = FieldFill.INSERT)
+    private String createdBy;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private String updatedBy;
 }

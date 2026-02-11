@@ -1,8 +1,6 @@
 package com.github.kokoachino.model.entity;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -71,22 +69,19 @@ public class OperationLog {
     private String details;
 
     /**
-     * 操作IP地址
+     * 操作 IP 地址
      */
     private String ipAddress;
 
-    /**
-     * 用户代理
-     */
-    private String userAgent;
-
-    /**
-     * 创建时间
-     */
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
-    /**
-     * 创建人
-     */
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updatedAt;
+
+    @TableField(fill = FieldFill.INSERT)
     private String createdBy;
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private String updatedBy;
 }
