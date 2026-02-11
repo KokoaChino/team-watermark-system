@@ -5,13 +5,17 @@ system: # 系统配置
     width: 120 # 验证码宽度
     height: 40 # 验证码高度
     code-length: 4 # 验证码字符数
-    line-count: 10 # 干扰线宽度
+    line-count: 30 # 干扰线宽度
     expiration: 2 # 有效期（分钟）
   email-code: # 邮箱验证码配置
     expiration: 5 # 有效期（分钟）
   batch-task: # 批量任务配置
     result-zip-expiry: 24 # 结果ZIP文件有效期（小时）
     max-images-per-task: 1000 # 单个任务最大图片数量
+  qr-code: # 二维码配置
+    width: 300 # 二维码宽度
+    height: 300 # 二维码高度
+    margin: 2 # 边距
 jwt: # JWT 配置
   secret: 8irILqtIqqVPQ4D71MrhBjVr5mqYvlQo # 密钥
   expiration: 2592000 # Token 有效期（秒）30天

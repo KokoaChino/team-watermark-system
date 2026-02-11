@@ -8,6 +8,7 @@ import com.github.kokoachino.mapper.PointTransactionMapper;
 import com.github.kokoachino.mapper.TeamMapper;
 import com.github.kokoachino.model.entity.PointTransaction;
 import com.github.kokoachino.model.entity.Team;
+import com.github.kokoachino.model.vo.PageVO;
 import com.github.kokoachino.model.vo.PointBalanceVO;
 import com.github.kokoachino.model.vo.PointTransactionVO;
 import com.github.kokoachino.service.OperationLogService;
@@ -229,13 +230,21 @@ public class PointServiceImpl implements PointService {
     }
 
     @Override
-    public List<PointTransactionVO> getTransactions(Integer teamId, Integer limit) {
+    public PageVO<PointTransactionVO> getTransactions(Integer teamId, Integer page, Integer size) {
+        // 计算偏移量
+        int offset = (page - 1) * size;
+        // 查询总数
+        LambdaQueryWrapper<PointTransaction> countWrapper = new LambdaQueryWrapper<>();
+        countWrapper.eq(PointTransaction::getTeamId, teamId);
+        Long total = pointTransactionMapper.selectCount(countWrapper);
+        // 查询数据
         LambdaQueryWrapper<PointTransaction> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PointTransaction::getTeamId, teamId)
                 .orderByDesc(PointTransaction::getCreatedAt)
-                .last("LIMIT " + limit);
+                .last("LIMIT " + offset + ", " + size);
         List<PointTransaction> transactions = pointTransactionMapper.selectList(wrapper);
-        return transactions.stream()
+        // 转换为VO
+        List<PointTransactionVO> voList = transactions.stream()
                 .map(t -> PointTransactionVO.builder()
                         .id(t.getId())
                         .type(t.getType())
@@ -247,6 +256,12 @@ public class PointServiceImpl implements PointService {
                         .createdAt(t.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());
+        return PageVO.<PointTransactionVO>builder()
+                .list(voList)
+                .total(total)
+                .page(page)
+                .size(size)
+                .build();
     }
 
     @Override

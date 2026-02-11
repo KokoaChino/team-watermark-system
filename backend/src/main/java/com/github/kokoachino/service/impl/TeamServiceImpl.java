@@ -112,12 +112,12 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (!InviteCodeStatusEnum.ACTIVE.getValue().equals(inviteCode.getStatus())) {
             throw new BizException(ResultCode.INVITE_CODE_INVALID);
         }
-        // 4. 校验是否过期
-        if (inviteCode.getValidUntil().isBefore(LocalDateTime.now())) {
+        // 4. 校验是否过期（validUntil为null表示永不过期）
+        if (inviteCode.getValidUntil() != null && inviteCode.getValidUntil().isBefore(LocalDateTime.now())) {
             throw new BizException(ResultCode.INVITE_CODE_EXPIRED);
         }
-        // 5. 校验使用次数
-        if (inviteCode.getUsesCount() >= inviteCode.getMaxUses()) {
+        // 5. 校验使用次数（maxUses为null表示无限制）
+        if (inviteCode.getMaxUses() != null && inviteCode.getUsesCount() >= inviteCode.getMaxUses()) {
             throw new BizException(ResultCode.INVITE_CODE_USED_UP);
         }
         Integer teamId = inviteCode.getTeamId();

@@ -28,11 +28,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/favicon.ico"
                 )
                 .excludePathPatterns(
-                        "/auth/login",
-                        "/auth/register",
-                        "/auth/send-code",
-                        "/auth/captcha",
-                        "/auth/forgot-password"
+                        "/api/auth/login",
+                        "/api/auth/register",
+                        "/api/auth/send-code",
+                        "/api/auth/captcha",
+                        "/api/auth/forgot-password"
                 );
     }
 }

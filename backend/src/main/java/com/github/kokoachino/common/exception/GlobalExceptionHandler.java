@@ -3,6 +3,7 @@ package com.github.kokoachino.common.exception;
 import com.github.kokoachino.common.result.Result;
 import com.github.kokoachino.common.result.ResultCode;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -42,6 +43,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<Object> handleException(Exception e) {
         log.error("系统异常：", e);
-        return Result.failed(e.getMessage());
+        return Result.failed(StringUtils.isBlank(e.getMessage()) ? ResultCode.SYSTEM_ERROR.getMessage() : e.getMessage());
     }
 }

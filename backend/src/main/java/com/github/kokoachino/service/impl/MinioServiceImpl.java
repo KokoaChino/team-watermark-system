@@ -112,7 +112,7 @@ public class MinioServiceImpl implements MinioService {
     }
 
     /**
-     * 确保存储桶存在
+     * 确保存储桶存在并设置公开访问策略
      */
     private void ensureBucketExists() throws Exception {
         boolean exists = minioClient.bucketExists(
@@ -126,15 +126,23 @@ public class MinioServiceImpl implements MinioService {
                             .bucket(minioConfig.getBucketName())
                             .build()
             );
-            // 设置存储桶为公开可读
-            String policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::" + minioConfig.getBucketName() + "/*\"]}]}";
-            minioClient.setBucketPolicy(
-                    SetBucketPolicyArgs.builder()
-                            .bucket(minioConfig.getBucketName())
-                            .config(policy)
-                            .build()
-            );
         }
+        // 设置存储桶为公开可读（无论是否新创建都设置策略）
+        setBucketPublicPolicy();
+    }
+
+    /**
+     * 设置存储桶公开访问策略
+     */
+    private void setBucketPublicPolicy() throws Exception {
+        String policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::" + minioConfig.getBucketName() + "/*\"]}]}";
+        minioClient.setBucketPolicy(
+                SetBucketPolicyArgs.builder()
+                        .bucket(minioConfig.getBucketName())
+                        .config(policy)
+                        .build()
+        );
+        log.info("已设置存储桶 {} 的公开访问策略", minioConfig.getBucketName());
     }
 
     /**

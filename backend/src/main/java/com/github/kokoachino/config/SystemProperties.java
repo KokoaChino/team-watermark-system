@@ -41,6 +41,11 @@ public class SystemProperties {
      */
     private BatchTaskConfig batchTask = new BatchTaskConfig();
 
+    /**
+     * 二维码配置
+     */
+    private QrCodeConfig qrCode = new QrCodeConfig();
+
     @Data
     public static class CaptchaConfig {
         /**
@@ -88,5 +93,23 @@ public class SystemProperties {
          * 单个任务最大图片数量
          */
         private Integer maxImagesPerTask;
+    }
+
+    @Data
+    public static class QrCodeConfig {
+        /**
+         * 二维码宽度
+         */
+        private Integer width;
+
+        /**
+         * 二维码高度
+         */
+        private Integer height;
+
+        /**
+         * 边距
+         */
+        private Integer margin;
     }
 }

@@ -18,6 +18,7 @@ import com.github.kokoachino.model.entity.PaymentOrder;
 import com.github.kokoachino.model.vo.PaymentOrderVO;
 import com.github.kokoachino.service.PaymentService;
 import com.github.kokoachino.service.PointService;
+import com.github.kokoachino.common.util.QrCodeUtil;
 import com.github.kokoachino.common.util.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -80,13 +81,15 @@ public class PaymentServiceImpl implements PaymentService {
             AlipayTradePrecreateResponse response = alipayClient.execute(request);
             if (response.isSuccess()) {
                 log.info("支付宝预创建订单成功：orderNo={}, qrCode={}", order.getOrderNo(), response.getQrCode());
+                // 生成二维码图片
+                String qrCodeBase64 = QrCodeUtil.generateBase64QrCode(response.getQrCode());
                 return PaymentOrderVO.builder()
                         .id(order.getId())
                         .orderNo(order.getOrderNo())
                         .points(order.getPoints())
                         .amount(order.getAmount())
                         .status(order.getStatus())
-                        .qrCodeUrl(response.getQrCode())
+                        .qrCodeBase64(qrCodeBase64)
                         .createdAt(order.getCreatedAt())
                         .build();
             } else {

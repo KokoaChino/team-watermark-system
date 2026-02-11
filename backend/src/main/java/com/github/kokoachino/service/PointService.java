@@ -1,8 +1,8 @@
 package com.github.kokoachino.service;
 
+import com.github.kokoachino.model.vo.PageVO;
 import com.github.kokoachino.model.vo.PointBalanceVO;
 import com.github.kokoachino.model.vo.PointTransactionVO;
-import java.util.List;
 
 
 /**
@@ -64,10 +64,11 @@ public interface PointService {
      * 获取点数流水
      *
      * @param teamId 团队ID
-     * @param limit  限制条数
-     * @return 流水列表
+     * @param page   页码
+     * @param size   每页条数
+     * @return 分页流水数据
      */
-    List<PointTransactionVO> getTransactions(Integer teamId, Integer limit);
+    PageVO<PointTransactionVO> getTransactions(Integer teamId, Integer page, Integer size);
 
     /**
      * 检查点数是否充足

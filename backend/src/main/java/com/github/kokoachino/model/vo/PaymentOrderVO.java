@@ -33,8 +33,8 @@ public class PaymentOrderVO {
     @Schema(description = "订单状态：pending-待支付，paid-已支付", example = "pending")
     private String status;
 
-    @Schema(description = "支付二维码URL", example = "https://qr.alipay.com/abc123")
-    private String qrCodeUrl;
+    @Schema(description = "支付二维码图片(Base64)", example = "data:image/png;base64,iVBORw0KGgo...")
+    private String qrCodeBase64;
 
     @Schema(description = "创建时间", example = "2026-02-10T14:30:00")
     private LocalDateTime createdAt;

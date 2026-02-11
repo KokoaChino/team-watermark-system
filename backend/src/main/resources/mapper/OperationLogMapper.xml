@@ -14,8 +14,8 @@
     <select id="selectByConditions" resultType="com.github.kokoachino.model.entity.OperationLog">
         SELECT * FROM tw_operation_log
         WHERE team_id = #{teamId}
-        <if test="eventTypeEnum != null and eventTypeEnum != ''">
-            AND event_type = #{eventTypeEnum}
+        <if test="eventType != null and eventType != ''">
+            AND event_type = #{eventType}
         </if>
         <if test="userId != null">
             AND user_id = #{userId}
@@ -34,8 +34,8 @@
     <select id="countByConditions" resultType="java.lang.Long">
         SELECT COUNT(*) FROM tw_operation_log
         WHERE team_id = #{teamId}
-        <if test="eventTypeEnum != null and eventTypeEnum != ''">
-            AND event_type = #{eventTypeEnum}
+        <if test="eventType != null and eventType != ''">
+            AND event_type = #{eventType}
         </if>
         <if test="userId != null">
             AND user_id = #{userId}
