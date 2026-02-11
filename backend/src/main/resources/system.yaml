@@ -1,37 +1,18 @@
-# 系统配置
-system:
-  # 初始点数
-  initial-points: 10000
-  # 点数单价（元/点）
-  point-price: 0.01
-  # 图形验证码配置
-  captcha:
-    # 验证码宽度
-    width: 120
-    # 验证码高度
-    height: 40
-    # 验证码字符数
-    code-length: 4
-    # 干扰线宽度
-    line-count: 10
-    # 有效期（分钟）
-    expiration: 2
-  # 邮箱验证码配置
-  email-code:
-    # 有效期（分钟）
-    expiration: 5
-  # 批量任务配置
-  batch-task:
-    # 结果ZIP文件有效期（小时）
-    result-zip-expiry: 24
-    # 单个任务最大图片数量
-    max-images-per-task: 1000
-
-# JWT 配置
-jwt:
-  # 密钥
-  secret: 8irILqtIqqVPQ4D71MrhBjVr5mqYvlQo
-  # Token 有效期（秒）30天
-  expiration: 2592000
-  # 自动续期阈值（秒）7天，当剩余有效期小于此值时自动续期
-  auto-renew-threshold: 604800
+system: # 系统配置
+  initial-points: 10000 # 初始点数
+  point-price: 0.01 # 点数单价（元/点）
+  captcha: # 图形验证码配置
+    width: 120 # 验证码宽度
+    height: 40 # 验证码高度
+    code-length: 4 # 验证码字符数
+    line-count: 10 # 干扰线宽度
+    expiration: 2 # 有效期（分钟）
+  email-code: # 邮箱验证码配置
+    expiration: 5 # 有效期（分钟）
+  batch-task: # 批量任务配置
+    result-zip-expiry: 24 # 结果ZIP文件有效期（小时）
+    max-images-per-task: 1000 # 单个任务最大图片数量
+jwt: # JWT 配置
+  secret: 8irILqtIqqVPQ4D71MrhBjVr5mqYvlQo # 密钥
+  expiration: 2592000 # Token 有效期（秒）30天
+  auto-renew-threshold: 604800 # 自动续期阈值（秒）7天，当剩余有效期小于此值时自动续期

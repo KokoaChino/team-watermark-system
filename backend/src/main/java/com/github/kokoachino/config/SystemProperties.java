@@ -19,12 +19,12 @@ public class SystemProperties {
     /**
      * 初始点数
      */
-    private Integer initialPoints = 10000;
+    private Integer initialPoints;
 
     /**
      * 点数单价（元/点）
      */
-    private Double pointPrice = 0.01;
+    private Double pointPrice;
 
     /**
      * 图形验证码配置
@@ -46,27 +46,27 @@ public class SystemProperties {
         /**
          * 验证码宽度
          */
-        private Integer width = 120;
+        private Integer width;
 
         /**
          * 验证码高度
          */
-        private Integer height = 40;
+        private Integer height;
 
         /**
          * 验证码字符数
          */
-        private Integer codeLength = 4;
+        private Integer codeLength;
 
         /**
          * 干扰线宽度
          */
-        private Integer lineCount = 10;
+        private Integer lineCount;
 
         /**
          * 有效期（分钟）
          */
-        private Integer expiration = 2;
+        private Integer expiration;
     }
 
     @Data
@@ -74,7 +74,7 @@ public class SystemProperties {
         /**
          * 有效期（分钟）
          */
-        private Integer expiration = 5;
+        private Integer expiration;
     }
 
     @Data
@@ -82,11 +82,11 @@ public class SystemProperties {
         /**
          * 结果ZIP文件有效期（小时）
          */
-        private Integer resultZipExpiry = 24;
+        private Integer resultZipExpiry;
 
         /**
          * 单个任务最大图片数量
          */
-        private Integer maxImagesPerTask = 1000;
+        private Integer maxImagesPerTask;
     }
 }

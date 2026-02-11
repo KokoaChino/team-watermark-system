@@ -1,8 +1,0 @@
-# MySQL 配置
-spring:
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    type: com.zaxxer.hikari.HikariDataSource
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
