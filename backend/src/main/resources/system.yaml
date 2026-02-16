@@ -16,6 +16,11 @@ system: # 系统配置
     width: 300 # 二维码宽度
     height: 300 # 二维码高度
     margin: 2 # 边距
+  template: # 模板默认配置
+    default-width: 800 # 默认画布宽度
+    default-height: 600 # 默认画布高度
+    default-background-color: "#ffffff" # 默认背景颜色
+    default-name: "未命名模板" # 默认模板名称
 jwt: # JWT 配置
   secret: 8irILqtIqqVPQ4D71MrhBjVr5mqYvlQo # 密钥
   expiration: 2592000 # Token 有效期（秒）30天

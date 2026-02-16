@@ -8,6 +8,7 @@ import com.github.kokoachino.common.enums.LockActionEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.LockUtils;
+import com.github.kokoachino.config.SystemProperties;
 import com.github.kokoachino.mapper.UserMapper;
 import com.github.kokoachino.mapper.WatermarkTemplateDraftMapper;
 import com.github.kokoachino.mapper.WatermarkTemplateMapper;
@@ -50,13 +51,14 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
     private final ObjectMapper objectMapper;
     private final LockUtils lockUtils;
     private final OperationLogService operationLogService;
+    private final SystemProperties systemProperties;
 
     @Override
     public List<WatermarkTemplateVO> getTemplateList(Integer teamId) {
         List<WatermarkTemplate> templates = templateMapper.selectList(
                 new LambdaQueryWrapper<WatermarkTemplate>()
                         .eq(WatermarkTemplate::getTeamId, teamId)
-                        .orderByDesc(WatermarkTemplate::getUpdatedAt)
+                        .orderByDesc(WatermarkTemplate::getCreatedAt)
         );
         return templates.stream()
                 .map(this::convertToVO)
@@ -104,7 +106,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         WatermarkConfigDTO defaultConfig = createDefaultConfig();
         WatermarkTemplateDraft draft = new WatermarkTemplateDraft();
         draft.setUserId(userId);
-        draft.setName("未命名模板");
+        draft.setName(systemProperties.getTemplate().getDefaultName());
         draft.setConfig(convertConfigToJson(defaultConfig));
         draftMapper.insert(draft);
         return convertToDraftVO(draft, false, null);
@@ -253,11 +255,12 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
     }
 
     private WatermarkConfigDTO createDefaultConfig() {
+        SystemProperties.TemplateConfig templateConfig = systemProperties.getTemplate();
         WatermarkConfigDTO config = new WatermarkConfigDTO();
         BaseConfigDTO baseConfig = new BaseConfigDTO();
-        baseConfig.setWidth(800);
-        baseConfig.setHeight(600);
-        baseConfig.setBackgroundColor("#ffffff");
+        baseConfig.setWidth(templateConfig.getDefaultWidth());
+        baseConfig.setHeight(templateConfig.getDefaultHeight());
+        baseConfig.setBackgroundColor(templateConfig.getDefaultBackgroundColor());
         config.setBaseConfig(baseConfig);
         return config;
     }

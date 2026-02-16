@@ -1,8 +1,10 @@
 package com.github.kokoachino.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.mapper.FontMapper;
+import com.github.kokoachino.model.dto.FontQueryDTO;
 import com.github.kokoachino.model.entity.Font;
 import com.github.kokoachino.model.vo.FontVO;
 import com.github.kokoachino.service.FontService;
@@ -31,8 +33,24 @@ public class FontServiceImpl implements FontService {
     private final MinioService minioService;
 
     @Override
-    public List<FontVO> getAvailableFonts(Integer teamId) {
-        List<Font> fonts = fontMapper.selectAvailableFonts(teamId);
+    public List<FontVO> getAvailableFonts(Integer teamId, FontQueryDTO dto) {
+        LambdaQueryWrapper<Font> wrapper = new LambdaQueryWrapper<>();
+        if (dto != null) {
+            if (Boolean.TRUE.equals(dto.getSystemFontOnly())) {
+                wrapper.isNull(Font::getTeamId);
+            } else if (Boolean.TRUE.equals(dto.getTeamFontOnly())) {
+                wrapper.eq(Font::getTeamId, teamId);
+            } else {
+                wrapper.and(w -> w.isNull(Font::getTeamId).or().eq(Font::getTeamId, teamId));
+            }
+            if (dto.getName() != null && !dto.getName().isEmpty()) {
+                wrapper.like(Font::getName, dto.getName());
+            }
+        } else {
+            wrapper.and(w -> w.isNull(Font::getTeamId).or().eq(Font::getTeamId, teamId));
+        }
+        wrapper.orderByAsc(Font::getTeamId).orderByAsc(Font::getName);
+        List<Font> fonts = fontMapper.selectList(wrapper);
         return fonts.stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
@@ -41,21 +59,17 @@ public class FontServiceImpl implements FontService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public FontVO uploadFont(Integer teamId, Integer userId, String name, MultipartFile fontFile) {
-        // 校验文件格式
         String originalFilename = fontFile.getOriginalFilename();
-        if (originalFilename == null || 
+        if (originalFilename == null ||
                 !(originalFilename.toLowerCase().endsWith(".ttf") || originalFilename.toLowerCase().endsWith(".otf"))) {
             throw new BizException(ResultCode.FONT_FILE_INVALID);
         }
-        // 检查字体名称是否已存在
         if (fontExists(name, teamId)) {
             throw new BizException(ResultCode.FONT_NAME_EXIST);
         }
         try {
-            // 生成ObjectKey并上传
             String objectKey = ((MinioServiceImpl) minioService).generateFontObjectKey(teamId, originalFilename);
             String fontUrl = minioService.uploadFile(fontFile, objectKey);
-            // 保存字体记录
             Font font = new Font();
             font.setName(name);
             font.setFontKey(objectKey);
@@ -76,25 +90,20 @@ public class FontServiceImpl implements FontService {
         if (font == null) {
             throw new BizException(ResultCode.FONT_NOT_FOUND);
         }
-        // 系统字体不能删除
         if (font.getTeamId() == null) {
             throw new BizException(ResultCode.FORBIDDEN);
         }
-        // 只能删除自己团队的字体
         if (!font.getTeamId().equals(teamId)) {
             throw new BizException(ResultCode.FORBIDDEN);
         }
-        // 只有队长可以删除
         if (!isLeader) {
             throw new BizException(ResultCode.NOT_TEAM_LEADER);
         }
-        // 删除MinIO文件
         try {
             minioService.deleteFile(font.getFontKey());
         } catch (Exception e) {
             log.warn("删除MinIO字体文件失败，继续删除数据库记录", e);
         }
-        // 删除数据库记录
         fontMapper.deleteById(fontId);
     }
 
@@ -104,9 +113,6 @@ public class FontServiceImpl implements FontService {
         return font != null;
     }
 
-    /**
-     * 转换为VO
-     */
     private FontVO convertToVO(Font font) {
         return FontVO.builder()
                 .id(font.getId())

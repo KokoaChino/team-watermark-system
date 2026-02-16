@@ -1,10 +1,11 @@
 package com.github.kokoachino.controller;
 
 import com.github.kokoachino.common.result.Result;
+import com.github.kokoachino.common.util.TeamContext;
 import com.github.kokoachino.common.util.UserContext;
+import com.github.kokoachino.model.dto.FontQueryDTO;
 import com.github.kokoachino.model.vo.FontVO;
 import com.github.kokoachino.service.FontService;
-import com.github.kokoachino.service.TeamService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,46 +28,34 @@ import java.util.List;
 public class FontController {
 
     private final FontService fontService;
-    private final TeamService teamService;
 
     @GetMapping("/list")
-    @Operation(summary = "获取可用字体列表")
-    public Result<List<FontVO>> getAvailableFonts() {
-        Integer userId = UserContext.getUserId();
-        Integer teamId = teamService.getCurrentTeamId(userId);
-        List<FontVO> list = fontService.getAvailableFonts(teamId);
+    @Operation(summary = "获取可用字体列表", description = "获取系统字体和团队上传的字体，支持条件筛选")
+    public Result<List<FontVO>> getAvailableFonts(FontQueryDTO dto) {
+        Integer teamId = TeamContext.getTeamId();
+        List<FontVO> list = fontService.getAvailableFonts(teamId, dto);
         return Result.success(list);
     }
 
     @PostMapping("/upload")
-    @Operation(summary = "上传字体")
+    @Operation(summary = "上传字体", description = "上传团队自定义字体（.ttf或.otf格式）")
     public Result<FontVO> uploadFont(
             @Parameter(description = "字体名称") @RequestParam String name,
             @Parameter(description = "字体文件(.ttf或.otf)") @RequestParam MultipartFile fontFile) {
         Integer userId = UserContext.getUserId();
-        Integer teamId = teamService.getCurrentTeamId(userId);
+        Integer teamId = TeamContext.getTeamId();
         FontVO result = fontService.uploadFont(teamId, userId, name, fontFile);
         return Result.success(result);
     }
 
     @DeleteMapping("/{fontId}")
-    @Operation(summary = "删除字体")
+    @Operation(summary = "删除字体", description = "删除团队上传的字体（仅队长可操作）")
     public Result<Void> deleteFont(
             @Parameter(description = "字体ID") @PathVariable Integer fontId) {
         Integer userId = UserContext.getUserId();
-        Integer teamId = teamService.getCurrentTeamId(userId);
-        boolean isLeader = teamService.isTeamLeader(userId, teamId);
+        Integer teamId = TeamContext.getTeamId();
+        boolean isLeader = TeamContext.isLeader();
         fontService.deleteFont(fontId, teamId, isLeader);
         return Result.success(null);
-    }
-
-    @GetMapping("/check")
-    @Operation(summary = "检查字体名称是否已存在")
-    public Result<Boolean> checkFontExists(
-            @Parameter(description = "字体名称") @RequestParam String name) {
-        Integer userId = UserContext.getUserId();
-        Integer teamId = teamService.getCurrentTeamId(userId);
-        boolean exists = fontService.fontExists(name, teamId);
-        return Result.success(exists);
     }
 }

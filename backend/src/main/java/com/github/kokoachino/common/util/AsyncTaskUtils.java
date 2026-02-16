@@ -2,6 +2,7 @@ package com.github.kokoachino.common.util;
 
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 import java.util.concurrent.*;
 
@@ -34,7 +35,7 @@ public class AsyncTaskUtils {
                 new ThreadFactory() {
                     private int count = 0;
                     @Override
-                    public Thread newThread(Runnable r) {
+                    public Thread newThread(@NotNull Runnable r) {
                         return new Thread(r, "async-task-thread-" + (++count));
                     }
                 },

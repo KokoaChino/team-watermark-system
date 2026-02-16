@@ -1,5 +1,6 @@
 package com.github.kokoachino.service;
 
+import com.github.kokoachino.model.dto.FontQueryDTO;
 import com.github.kokoachino.model.vo.FontVO;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
@@ -17,9 +18,10 @@ public interface FontService {
      * 获取团队可用字体列表（系统字体+团队字体）
      *
      * @param teamId 团队ID
+     * @param dto    查询条件
      * @return 字体列表
      */
-    List<FontVO> getAvailableFonts(Integer teamId);
+    List<FontVO> getAvailableFonts(Integer teamId, FontQueryDTO dto);
 
     /**
      * 上传字体

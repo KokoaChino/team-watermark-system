@@ -28,12 +28,10 @@ public class ExcelParseServiceImpl implements ExcelParseService {
     public ExcelParseResultVO parseExcel(MultipartFile excelFile, String mappingMode, List<String> imageIds) {
         List<List<String>> dataList = new ArrayList<>();
         List<String> headers = new ArrayList<>();
-
         try {
             // 读取所有数据
             EasyExcel.read(excelFile.getInputStream(), new ReadListener<Map<Integer, String>>() {
                 private boolean isFirstRow = true;
-
                 @Override
                 public void invoke(Map<Integer, String> data, AnalysisContext context) {
                     if (isFirstRow) {
@@ -47,7 +45,6 @@ public class ExcelParseServiceImpl implements ExcelParseService {
                         dataList.add(row);
                     }
                 }
-
                 @Override
                 public void doAfterAllAnalysed(AnalysisContext context) {
                     log.info("Excel解析完成，共{}行数据", dataList.size());
@@ -57,16 +54,13 @@ public class ExcelParseServiceImpl implements ExcelParseService {
             log.error("Excel文件读取失败", e);
             throw new BizException(ResultCode.EXCEL_PARSE_ERROR);
         }
-
         if (headers.isEmpty()) {
             throw new BizException(ResultCode.EXCEL_STRUCTURE_INVALID);
         }
-
         // 解析数据
         ExcelParseResultVO.ExcelParseResultVOBuilder resultBuilder = ExcelParseResultVO.builder()
                 .headers(headers)
                 .totalRows(dataList.size());
-
         if ("order".equals(mappingMode)) {
             // 按顺序映射
             List<ExcelParseResultVO.ImageConfigVO> configByOrder = parseByOrder(dataList, headers, imageIds);
@@ -76,7 +70,6 @@ public class ExcelParseServiceImpl implements ExcelParseService {
             Map<String, ExcelParseResultVO.ImageConfigVO> configById = parseById(dataList, headers);
             resultBuilder.configById(configById);
         }
-
         return resultBuilder.build();
     }
 
@@ -85,17 +78,14 @@ public class ExcelParseServiceImpl implements ExcelParseService {
      */
     private Map<String, ExcelParseResultVO.ImageConfigVO> parseById(List<List<String>> dataList, List<String> headers) {
         Map<String, ExcelParseResultVO.ImageConfigVO> result = new LinkedHashMap<>();
-
         for (List<String> row : dataList) {
-            if (row.isEmpty() || (row.get(0) == null || row.get(0).trim().isEmpty())) {
+            if (row.isEmpty() || (row.getFirst() == null || row.getFirst().trim().isEmpty())) {
                 continue; // 跳过空行
             }
-
-            String imageId = row.get(0).trim();
+            String imageId = row.getFirst().trim();
             ExcelParseResultVO.ImageConfigVO config = parseRowToConfig(row, headers, imageId);
             result.put(imageId, config);
         }
-
         return result;
     }
 
@@ -104,19 +94,16 @@ public class ExcelParseServiceImpl implements ExcelParseService {
      */
     private List<ExcelParseResultVO.ImageConfigVO> parseByOrder(List<List<String>> dataList, List<String> headers, List<String> imageIds) {
         List<ExcelParseResultVO.ImageConfigVO> result = new ArrayList<>();
-
         for (int i = 0; i < dataList.size(); i++) {
             List<String> row = dataList.get(i);
-            if (row.isEmpty() || (row.get(0) == null || row.get(0).trim().isEmpty())) {
+            if (row.isEmpty() || (row.getFirst() == null || row.getFirst().trim().isEmpty())) {
                 continue; // 跳过空行
             }
-
             // 按顺序分配图片ID
             String imageId = (imageIds != null && i < imageIds.size()) ? imageIds.get(i) : String.valueOf(i);
             ExcelParseResultVO.ImageConfigVO config = parseRowToConfig(row, headers, imageId);
             result.add(config);
         }
-
         return result;
     }
 
@@ -128,18 +115,14 @@ public class ExcelParseServiceImpl implements ExcelParseService {
         Map<String, String> imageReplacements = new LinkedHashMap<>();
         String outputFilename = null;
         String outputPath = null;
-
         // 解析后续列
         for (int i = 1; i < headers.size() && i < row.size(); i++) {
             String header = headers.get(i);
             String value = row.get(i);
-
             if (value == null || value.trim().isEmpty()) {
                 continue;
             }
-
             value = value.trim();
-
             // 根据表头判断类型
             if (header.contains("文字") || header.contains("text") || header.contains("Text")) {
                 // 提取索引或标识
@@ -157,7 +140,6 @@ public class ExcelParseServiceImpl implements ExcelParseService {
                 textReplacements.put(String.valueOf(i - 1), value);
             }
         }
-
         return ExcelParseResultVO.ImageConfigVO.builder()
                 .imageId(imageId)
                 .textReplacements(textReplacements)
