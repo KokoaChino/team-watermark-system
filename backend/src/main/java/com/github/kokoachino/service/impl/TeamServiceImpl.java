@@ -45,9 +45,10 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     @Transactional(rollbackFor = Exception.class)
     public Integer createPersonalTeam(Integer userId, String username, Integer initialPoints) {
         Team team = new Team();
-        team.setName(username + "的个人团队");
+        team.setName(username + "的团队");
         team.setPointBalance(initialPoints);
         team.setLeaderId(userId);
+        team.setOwnerId(userId);
         this.save(team);
         TeamMember member = new TeamMember();
         member.setTeamId(team.getId());
@@ -112,34 +113,57 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (inviteCode.getMaxUses() != null && inviteCode.getUsesCount() >= inviteCode.getMaxUses()) {
             throw new BizException(ResultCode.INVITE_CODE_USED_UP);
         }
-        Integer teamId = inviteCode.getTeamId();
+        Integer newTeamId = inviteCode.getTeamId();
         TeamMember existingMember = teamMemberMapper.selectOne(
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getUserId, userId)
-                        .eq(TeamMember::getTeamId, teamId)
+                        .eq(TeamMember::getTeamId, newTeamId)
         );
         if (existingMember != null) {
             throw new BizException(ResultCode.ALREADY_IN_TEAM);
         }
-        teamMemberMapper.delete(
+        TeamMember currentMember = teamMemberMapper.selectOne(
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getUserId, userId)
         );
+        Integer oldTeamId = null;
+        int pointsToTransfer = 0;
+        if (currentMember != null) {
+            oldTeamId = currentMember.getTeamId();
+            long memberCount = teamMemberMapper.selectCount(
+                    new LambdaQueryWrapper<TeamMember>()
+                            .eq(TeamMember::getTeamId, oldTeamId)
+            );
+            Team oldTeam = this.getById(oldTeamId);
+            if (memberCount == 1 && oldTeam.getPointBalance() > 0 && Boolean.TRUE.equals(dto.getTransferPoints())) {
+                pointsToTransfer = oldTeam.getPointBalance();
+                oldTeam.setPointBalance(0);
+                this.updateById(oldTeam);
+            }
+            teamMemberMapper.deleteById(currentMember.getId());
+        }
         TeamMember newMember = new TeamMember();
-        newMember.setTeamId(teamId);
+        newMember.setTeamId(newTeamId);
         newMember.setUserId(userId);
         newMember.setRole(TeamRoleEnum.MEMBER.getValue());
         teamMemberMapper.insert(newMember);
         inviteCode.setUsesCount(inviteCode.getUsesCount() + 1);
         inviteCodeMapper.updateById(inviteCode);
-        Team team = this.getById(teamId);
-        Map<String, Object> details = Map.of(
-                "inviteCode", rawCode,
-                "inviteCodeId", inviteCode.getId(),
-                "previousTeam", "已退出原团队"
-        );
-        operationLogService.log(EventTypeEnum.TEAM_JOIN, teamId, userId, username, null, team.getName(), null, null, details);
-        return buildTeamMemberVO(teamId, TeamRoleEnum.MEMBER.getValue());
+        if (pointsToTransfer > 0) {
+            Team newTeam = this.getById(newTeamId);
+            newTeam.setPointBalance(newTeam.getPointBalance() + pointsToTransfer);
+            this.updateById(newTeam);
+        }
+        Team team = this.getById(newTeamId);
+        Map<String, Object> details = new java.util.HashMap<>();
+        details.put("inviteCode", rawCode);
+        details.put("inviteCodeId", inviteCode.getId());
+        details.put("previousTeam", oldTeamId != null ? "已退出原团队" : "无原团队");
+        if (pointsToTransfer > 0) {
+            details.put("transferredPoints", pointsToTransfer);
+        }
+        operationLogService.log(EventTypeEnum.TEAM_JOIN, newTeamId, userId, username, null, team.getName(), null, null, details);
+        return buildTeamMemberVO(newTeamId, TeamRoleEnum.MEMBER.getValue());
     }
 
     @Override

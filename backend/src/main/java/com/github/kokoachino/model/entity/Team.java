@@ -24,6 +24,8 @@ public class Team {
 
     private Integer leaderId;
 
+    private Integer ownerId;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 

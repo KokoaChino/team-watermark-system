@@ -21,4 +21,7 @@ public class JoinTeamDTO {
     @Schema(description = "邀请码文本（可以包含【】包装的邀请码）", requiredMode = Schema.RequiredMode.REQUIRED, 
             example = "快来加入XX团队【AB4D82】，一起协作处理图片水印吧！")
     private String inviteCodeText;
+
+    @Schema(description = "是否将原团队的剩余点数迁移到新团队（仅当原团队只有自己一人且有点数时有效）", example = "true")
+    private Boolean transferPoints;
 }

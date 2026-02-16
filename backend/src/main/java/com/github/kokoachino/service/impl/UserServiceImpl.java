@@ -14,7 +14,6 @@ import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.*;
 import com.github.kokoachino.config.SystemProperties;
 import com.github.kokoachino.model.dto.*;
-import com.github.kokoachino.common.util.AsyncTaskUtils;
 import com.github.kokoachino.mapper.BlackListMapper;
 import com.github.kokoachino.mapper.TeamMemberMapper;
 import com.github.kokoachino.mapper.UserMapper;
@@ -35,7 +34,6 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import com.github.kokoachino.common.util.RedisKeyUtils;
 
 
 /**
@@ -240,13 +238,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                                 .eq(TeamMember::getTeamId, teamId)
                                 .ne(TeamMember::getUserId, userId)
                                 .orderByAsc(TeamMember::getCreatedAt));
-                        if (others.isEmpty()) {
-                            teamService.removeById(teamId);
-                        } else {
+                        if (!others.isEmpty()) {
                             TeamMember nextLeader = others.getFirst();
                             nextLeader.setRole(TeamRoleEnum.LEADER.getValue());
                             teamMemberMapper.updateById(nextLeader);
-
                             Team team = teamService.getById(teamId);
                             team.setLeaderId(nextLeader.getUserId());
                             teamService.updateById(team);
