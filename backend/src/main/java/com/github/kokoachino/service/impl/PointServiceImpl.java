@@ -5,7 +5,6 @@ import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.mapper.TeamMapper;
 import com.github.kokoachino.model.entity.Team;
-import com.github.kokoachino.model.vo.PointBalanceVO;
 import com.github.kokoachino.service.OperationLogService;
 import com.github.kokoachino.service.PointService;
 import lombok.RequiredArgsConstructor;
@@ -35,19 +34,6 @@ public class PointServiceImpl implements PointService {
     private final OperationLogService operationLogService;
 
     private static final String POINT_LOCK_PREFIX = "point:lock:";
-
-    @Override
-    public PointBalanceVO getBalance(Integer teamId) {
-        Team team = teamMapper.selectById(teamId);
-        if (team == null) {
-            throw new BizException(ResultCode.TEAM_NOT_FOUND);
-        }
-        return PointBalanceVO.builder()
-                .teamId(team.getId())
-                .teamName(team.getName())
-                .balance(team.getPointBalance())
-                .build();
-    }
 
     @Override
     @Transactional(rollbackFor = Exception.class)

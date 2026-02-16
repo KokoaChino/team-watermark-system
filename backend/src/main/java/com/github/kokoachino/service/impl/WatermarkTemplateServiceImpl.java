@@ -11,10 +11,8 @@ import com.github.kokoachino.common.util.LockUtils;
 import com.github.kokoachino.mapper.UserMapper;
 import com.github.kokoachino.mapper.WatermarkTemplateDraftMapper;
 import com.github.kokoachino.mapper.WatermarkTemplateMapper;
-import com.github.kokoachino.model.dto.CreateTemplateDTO;
 import com.github.kokoachino.model.dto.SaveDraftDTO;
 import com.github.kokoachino.model.dto.SubmitDraftDTO;
-import com.github.kokoachino.model.dto.UpdateTemplateDTO;
 import com.github.kokoachino.model.dto.BaseConfigDTO;
 import com.github.kokoachino.model.dto.WatermarkConfigDTO;
 import com.github.kokoachino.model.entity.User;
@@ -63,53 +61,6 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         return templates.stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public WatermarkTemplateVO getTemplateDetail(Integer templateId) {
-        WatermarkTemplate template = templateMapper.selectById(templateId);
-        if (template == null) {
-            throw new BizException(ResultCode.TEMPLATE_NOT_FOUND);
-        }
-        return convertToVO(template);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public WatermarkTemplateVO createTemplate(Integer teamId, Integer userId, String username, CreateTemplateDTO dto) {
-        checkTemplateNameExists(teamId, dto.getName(), null);
-        WatermarkTemplate template = new WatermarkTemplate();
-        template.setTeamId(teamId);
-        template.setName(dto.getName());
-        template.setConfig(convertConfigToJson(dto.getConfig()));
-        template.setCreatedById(userId);
-        templateMapper.insert(template);
-        operationLogService.log(EventTypeEnum.TEMPLATE_CREATE, template.getId(), dto.getName(),
-                Map.of("config", dto.getConfig()));
-        return convertToVO(template);
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public WatermarkTemplateVO updateTemplate(Integer templateId, UpdateTemplateDTO dto) {
-        WatermarkTemplate template = templateMapper.selectById(templateId);
-        if (template == null) {
-            throw new BizException(ResultCode.TEMPLATE_NOT_FOUND);
-        }
-        checkTemplateNameExists(template.getTeamId(), dto.getName(), templateId);
-        if (!dto.getVersion().equals(template.getVersion())) {
-            throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
-        }
-        String beforeData = template.getConfig();
-        template.setName(dto.getName());
-        template.setConfig(convertConfigToJson(dto.getConfig()));
-        int affected = templateMapper.updateById(template);
-        if (affected == 0) {
-            throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
-        }
-        operationLogService.log(EventTypeEnum.TEMPLATE_UPDATE, templateId, dto.getName(),
-                Map.of("beforeVersion", template.getVersion(), "afterVersion", template.getVersion() + 1));
-        return convertToVO(template);
     }
 
     @Override
@@ -209,10 +160,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
                     }
                     WatermarkConfigDTO config = parseConfig(draft.getConfig());
                     if (draft.getSourceTemplateId() == null || Boolean.TRUE.equals(dto.getForceCreateNew())) {
-                        CreateTemplateDTO createDTO = new CreateTemplateDTO();
-                        createDTO.setName(draft.getName());
-                        createDTO.setConfig(config);
-                        WatermarkTemplateVO result = createTemplate(teamId, userId, username, createDTO);
+                        WatermarkTemplateVO result = doCreateTemplate(teamId, userId, draft.getName(), config);
                         clearDraft(userId);
                         return result;
                     } else {
@@ -223,11 +171,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
                         if (!sourceTemplate.getVersion().equals(draft.getSourceVersion())) {
                             throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
                         }
-                        UpdateTemplateDTO updateDTO = new UpdateTemplateDTO();
-                        updateDTO.setName(draft.getName());
-                        updateDTO.setConfig(config);
-                        updateDTO.setVersion(draft.getSourceVersion());
-                        WatermarkTemplateVO result = updateTemplate(draft.getSourceTemplateId(), updateDTO);
+                        WatermarkTemplateVO result = doUpdateTemplate(draft.getSourceTemplateId(), draft.getName(), config, draft.getSourceVersion());
                         clearDraft(userId);
                         return result;
                     }
@@ -242,6 +186,39 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         if (draft != null) {
             draftMapper.deleteById(draft.getId());
         }
+    }
+
+    private WatermarkTemplateVO doCreateTemplate(Integer teamId, Integer userId, String name, WatermarkConfigDTO config) {
+        checkTemplateNameExists(teamId, name, null);
+        WatermarkTemplate template = new WatermarkTemplate();
+        template.setTeamId(teamId);
+        template.setName(name);
+        template.setConfig(convertConfigToJson(config));
+        template.setCreatedById(userId);
+        templateMapper.insert(template);
+        operationLogService.log(EventTypeEnum.TEMPLATE_CREATE, template.getId(), name,
+                Map.of("config", config));
+        return convertToVO(template);
+    }
+
+    private WatermarkTemplateVO doUpdateTemplate(Integer templateId, String name, WatermarkConfigDTO config, Integer version) {
+        WatermarkTemplate template = templateMapper.selectById(templateId);
+        if (template == null) {
+            throw new BizException(ResultCode.TEMPLATE_NOT_FOUND);
+        }
+        checkTemplateNameExists(template.getTeamId(), name, templateId);
+        if (!version.equals(template.getVersion())) {
+            throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
+        }
+        template.setName(name);
+        template.setConfig(convertConfigToJson(config));
+        int affected = templateMapper.updateById(template);
+        if (affected == 0) {
+            throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
+        }
+        operationLogService.log(EventTypeEnum.TEMPLATE_UPDATE, templateId, name,
+                Map.of("beforeVersion", version, "afterVersion", template.getVersion()));
+        return convertToVO(template);
     }
 
     private void checkTemplateNameExists(Integer teamId, String name, Integer excludeId) {

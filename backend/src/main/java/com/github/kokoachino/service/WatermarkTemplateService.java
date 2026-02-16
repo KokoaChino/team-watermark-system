@@ -1,9 +1,7 @@
 package com.github.kokoachino.service;
 
-import com.github.kokoachino.model.dto.CreateTemplateDTO;
 import com.github.kokoachino.model.dto.SaveDraftDTO;
 import com.github.kokoachino.model.dto.SubmitDraftDTO;
-import com.github.kokoachino.model.dto.UpdateTemplateDTO;
 import com.github.kokoachino.model.vo.DraftVO;
 import com.github.kokoachino.model.vo.WatermarkTemplateVO;
 import java.util.List;
@@ -24,34 +22,6 @@ public interface WatermarkTemplateService {
      * @return 模板列表
      */
     List<WatermarkTemplateVO> getTemplateList(Integer teamId);
-
-    /**
-     * 获取模板详情
-     *
-     * @param templateId 模板ID
-     * @return 模板详情
-     */
-    WatermarkTemplateVO getTemplateDetail(Integer templateId);
-
-    /**
-     * 创建模板（直接创建，不走草稿）
-     *
-     * @param teamId     团队ID
-     * @param userId     用户ID
-     * @param username   用户名
-     * @param dto        创建参数
-     * @return 创建的模板
-     */
-    WatermarkTemplateVO createTemplate(Integer teamId, Integer userId, String username, CreateTemplateDTO dto);
-
-    /**
-     * 更新模板
-     *
-     * @param templateId 模板ID
-     * @param dto        更新参数
-     * @return 更新后的模板
-     */
-    WatermarkTemplateVO updateTemplate(Integer templateId, UpdateTemplateDTO dto);
 
     /**
      * 删除模板

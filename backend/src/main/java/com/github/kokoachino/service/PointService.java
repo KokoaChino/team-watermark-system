@@ -1,7 +1,5 @@
 package com.github.kokoachino.service;
 
-import com.github.kokoachino.model.vo.PointBalanceVO;
-
 
 /**
  * 点数服务接口
@@ -10,14 +8,6 @@ import com.github.kokoachino.model.vo.PointBalanceVO;
  * @date 2026-02-10
  */
 public interface PointService {
-
-    /**
-     * 获取团队点数余额
-     *
-     * @param teamId 团队ID
-     * @return 点数余额VO
-     */
-    PointBalanceVO getBalance(Integer teamId);
 
     /**
      * 预扣点数
