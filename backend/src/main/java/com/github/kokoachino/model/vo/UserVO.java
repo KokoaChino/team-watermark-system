@@ -1,6 +1,5 @@
 package com.github.kokoachino.model.vo;
 
-import com.github.kokoachino.common.enums.TeamRoleEnum;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
@@ -28,13 +27,4 @@ public class UserVO {
 
     @Schema(description = "访问令牌", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String token;
-
-    @Schema(description = "所属团队 ID", example = "1")
-    private Integer teamId;
-
-    /**
-     * @see TeamRoleEnum
-     */
-    @Schema(description = "团队角色", example = "member")
-    private String teamRole;
 }

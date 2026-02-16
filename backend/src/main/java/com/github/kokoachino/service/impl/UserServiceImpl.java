@@ -75,22 +75,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BizException(ResultCode.UNSUPPORTED_LOGIN_TYPE);
         }
         if (loginTypeEnum == LoginTypeEnum.PASSWORD) {
-            // 密码登录
             if (!BCrypt.checkpw(loginDTO.getPassword(), user.getPassword())) {
                 throw new BizException(ResultCode.PASSWORD_ERROR);
             }
         } else if (loginTypeEnum == LoginTypeEnum.CAPTCHA) {
-            // 验证码登录
             String emailCode = loginDTO.getEmailCode();
             String redisKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeTypeEnum.LOGIN.getValue(), user.getEmail());
             String cachedCode = redisUtils.get(redisKey);
             if (cachedCode == null || !cachedCode.equals(emailCode)) {
                 throw new BizException(ResultCode.EMAIL_CODE_ERROR);
             }
-            // 验证通过后删除验证码
             redisUtils.delete(redisKey);
         }
-        // 生成 Token
         String token = jwtUtils.generateToken(user.getId());
         UserVO userVO = getUserVOById(user.getId());
         userVO.setToken(token);
@@ -100,7 +96,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void register(RegisterDTO registerDTO) {
-        // 1. 校验人机验证码
         String captchaKey = registerDTO.getCaptchaKey();
         String redisCaptchaKey = RedisKeyUtils.getCaptchaKey(captchaKey);
         String cachedCaptcha = redisUtils.get(redisCaptchaKey);
@@ -108,14 +103,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BizException(ResultCode.CAPTCHA_ERROR);
         }
         redisUtils.delete(redisCaptchaKey);
-        // 2. 校验邮箱验证码
         String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeTypeEnum.REGISTER.getValue(), registerDTO.getEmail());
         String cachedEmailCode = redisUtils.get(emailCodeKey);
         if (cachedEmailCode == null || !cachedEmailCode.equals(registerDTO.getEmailCode())) {
             throw new BizException(ResultCode.EMAIL_CODE_ERROR);
         }
         redisUtils.delete(emailCodeKey);
-        // 3. 校验用户是否存在
         long count = this.count(new LambdaQueryWrapper<User>()
                 .eq(User::getUsername, registerDTO.getUsername())
                 .or()
@@ -123,31 +116,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (count > 0) {
             throw new BizException(ResultCode.USER_EXIST);
         }
-        // 4. 创建用户
         User user = new User();
         user.setUsername(registerDTO.getUsername());
         user.setPassword(BCrypt.hashpw(registerDTO.getPassword()));
         user.setEmail(registerDTO.getEmail());
         this.save(user);
-        // 5. 检查黑名单以确定初始点数
         long isBlacklisted = blackListMapper.selectCount(new LambdaQueryWrapper<BlackList>()
                 .eq(BlackList::getType, BlackListTypeEnum.EMAIL.getValue())
                 .eq(BlackList::getValue, registerDTO.getEmail()));
         int initialPoints = isBlacklisted > 0 ? 0 : systemProperties.getInitialPoints();
-        // 6. 创建个人团队
         teamService.createPersonalTeam(user.getId(), user.getUsername(), initialPoints);
     }
 
     @Override
     public void forgotPassword(ForgotPasswordDTO forgotPasswordDTO) {
-        // 1. 校验邮箱验证码
         String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeTypeEnum.FORGOT_PASSWORD.getValue(), forgotPasswordDTO.getEmail());
         String cachedEmailCode = redisUtils.get(emailCodeKey);
         if (cachedEmailCode == null || !cachedEmailCode.equals(forgotPasswordDTO.getCode())) {
             throw new BizException(ResultCode.EMAIL_CODE_ERROR);
         }
         redisUtils.delete(emailCodeKey);
-        // 2. 更新密码
         User user = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getEmail, forgotPasswordDTO.getEmail()));
         if (user == null) {
             throw new BizException(ResultCode.USER_NOT_FOUND);
@@ -165,17 +153,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BizException(ResultCode.VALIDATE_FAILED);
         }
         String redisKey = RedisKeyUtils.getEmailCodeKey(typeValue, sendCodeDTO.getEmail());
-        // 校验发送频率
         if (redisUtils.hasKey(redisKey)) {
-            // 如果还剩60秒以上，说明才刚发过
             Long expire = redisUtils.getExpire(redisKey);
             if (expire != null && expire > (systemProperties.getEmailCode().getExpiration() * 60 - 60)) {
                 throw new BizException(ResultCode.REQUEST_TOO_FREQUENT);
             }
         }
-        // 存入 Redis
         redisUtils.set(redisKey, code, systemProperties.getEmailCode().getExpiration(), TimeUnit.MINUTES);
-        // 发送邮件 (异步)
         String subject = "【协作式批量图片水印处理系统】验证码（请勿泄露）";
         String htmlContent = """
             <html>
@@ -200,7 +184,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             </body>
             </html>
             """.formatted(type.getDesc(), code, systemProperties.getEmailCode().getExpiration());
-        // 异步发送邮件
         asyncTaskUtils.execute(() -> {
             try {
                 mailUtils.sendHtmlMail(sendCodeDTO.getEmail(), subject, htmlContent);
@@ -213,14 +196,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public CaptchaVO getCaptcha() {
         CaptchaUtils.CaptchaResult result = captchaUtils.createCaptcha();
-        // 将验证码存入 Redis
         redisUtils.set(
                 RedisKeyUtils.getCaptchaKey(result.key()),
                 result.code(),
                 systemProperties.getCaptcha().getExpiration(),
                 TimeUnit.MINUTES
         );
-        // 返回前端需要的数据（不包含 code）
         return CaptchaVO.builder()
                 .base64(result.base64())
                 .key(result.key())
@@ -233,7 +214,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String token = request.getHeader("Authorization");
         if (token != null && token.startsWith("Bearer ")) {
             token = token.substring(7);
-            // 将 Token 加入黑名单
             BlackList blackList = new BlackList();
             blackList.setType(BlackListTypeEnum.TOKEN.getValue());
             blackList.setValue(token);
@@ -246,29 +226,23 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public void unregister() {
         Integer userId = UserContext.getUserId();
         String lockKey = LockUtils.getUserLockKey(userId);
-        // 使用分布式锁保证原子性
         lockUtils.executeWithLock(lockKey, () -> {
             User user = this.getById(userId);
             if (user == null) return;
-            // 1. 获取用户所属团队（用户同一时刻只能存在于一个团队）
             TeamMember member = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
                     .eq(TeamMember::getUserId, userId));
             if (member != null) {
                 Integer teamId = member.getTeamId();
-                // 使用团队锁
                 String teamLockKey = LockUtils.getTeamLockKey(teamId);
                 lockUtils.executeWithLock(teamLockKey, () -> {
                     if (TeamRoleEnum.LEADER.getValue().equals(member.getRole())) {
-                        // 队长逻辑：查找其他成员
                         List<TeamMember> others = teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
                                 .eq(TeamMember::getTeamId, teamId)
                                 .ne(TeamMember::getUserId, userId)
                                 .orderByAsc(TeamMember::getCreatedAt));
                         if (others.isEmpty()) {
-                            // 仅剩自己，解散团队
                             teamService.removeById(teamId);
                         } else {
-                            // 转移队长身份给最早加入的成员
                             TeamMember nextLeader = others.getFirst();
                             nextLeader.setRole(TeamRoleEnum.LEADER.getValue());
                             teamMemberMapper.updateById(nextLeader);
@@ -278,46 +252,32 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                             teamService.updateById(team);
                         }
                     }
-                    // 删除成员记录
                     teamMemberMapper.deleteById(member.getId());
                 });
             }
-            // 2. 删除用户
             this.removeById(userId);
-            // 3. 邮箱加入黑名单防止刷点数
             BlackList blackList = new BlackList();
             blackList.setType(BlackListTypeEnum.EMAIL.getValue());
             blackList.setValue(user.getEmail());
             blackListMapper.insert(blackList);
-            // 4. 清除用户缓存
             redisUtils.delete(RedisKeyUtils.getUserKey(userId));
         });
     }
 
     @Override
     public UserVO getUserVOById(Integer userId) {
-        // 先从 Redis 缓存中获取
         String cacheKey = RedisKeyUtils.getUserKey(userId);
         String cachedUserJson = redisUtils.get(cacheKey);
         if (cachedUserJson != null) {
-            // 从缓存中返回
             return JSONUtil.toBean(cachedUserJson, UserVO.class);
         }
-        // 缓存中没有，从数据库查询
         User user = this.getById(userId);
         if (user == null) return null;
-        // 获取用户所属团队（一个用户同一时刻只能存在于一个团队中）
-        TeamMember member = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
-                .eq(TeamMember::getUserId, userId)
-                .last("limit 1"));
         UserVO userVO = UserVO.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
-                .teamId(member != null ? member.getTeamId() : null)
-                .teamRole(member != null ? member.getRole() : null)
                 .build();
-        // 存入 Redis 缓存，有效期 30 分钟
         redisUtils.set(cacheKey, cn.hutool.json.JSONUtil.toJsonStr(userVO), 30, TimeUnit.MINUTES);
         return userVO;
     }
@@ -331,13 +291,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BizException(ResultCode.USER_NOT_FOUND);
         }
         boolean needLogout = false;
-        // 1. 处理用户名修改
         if (dto.getUsername() != null) {
-            // 检查是否与当前用户名相同
             if (dto.getUsername().equals(user.getUsername())) {
                 throw new BizException(ResultCode.SAME_USER);
             }
-            // 检查新用户名是否已被其他用户使用
             long count = this.count(new LambdaQueryWrapper<User>()
                     .eq(User::getUsername, dto.getUsername())
                     .ne(User::getId, userId));
@@ -346,30 +303,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             }
             user.setUsername(dto.getUsername());
         }
-        // 2. 处理密码修改
         if (dto.getNewPassword() != null) {
-            // 验证原密码
-            if (!BCrypt.checkpw(dto.getOriginalPassword(), user.getPassword())) {
-                throw new BizException(ResultCode.INVALID_PASSWORD);
-            }
             user.setPassword(BCrypt.hashpw(dto.getNewPassword()));
             needLogout = true;
         }
-        // 3. 处理邮箱修改
         if (dto.getNewEmail() != null) {
-            // 检查是否与当前邮箱相同
             if (dto.getNewEmail().equals(user.getEmail())) {
                 throw new BizException(ResultCode.SAME_EMAIL);
             }
-            // 验证邮箱验证码
             String emailCodeKey = RedisKeyUtils.getEmailCodeKey(VerificationCodeTypeEnum.UPDATE_EMAIL.getValue(), dto.getNewEmail());
             String cachedCode = redisUtils.get(emailCodeKey);
             if (cachedCode == null || !cachedCode.equals(dto.getEmailCode())) {
                 throw new BizException(ResultCode.EMAIL_CODE_ERROR);
             }
-            // 删除已使用的验证码
             redisUtils.delete(emailCodeKey);
-            // 检查新邮箱是否已被其他用户绑定
             long count = this.count(new LambdaQueryWrapper<User>()
                     .eq(User::getEmail, dto.getNewEmail())
                     .ne(User::getId, userId));
@@ -379,11 +326,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             user.setEmail(dto.getNewEmail());
             needLogout = true;
         }
-        // 4. 更新用户信息
         this.updateById(user);
-        // 5. 清除用户缓存
         redisUtils.delete(RedisKeyUtils.getUserKey(userId));
-        // 6. 如果需要重新登录（修改了密码或邮箱），将当前 Token 加入黑名单
         if (needLogout) {
             String token = request.getHeader("Authorization");
             if (token != null && token.startsWith("Bearer ")) {
@@ -394,7 +338,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 blackListMapper.insert(blackList);
             }
         }
-        // 7. 返回更新后的用户信息
         return getUserVOById(userId);
     }
 }

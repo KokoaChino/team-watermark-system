@@ -1,15 +1,18 @@
 package com.github.kokoachino.config;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.github.kokoachino.common.enums.BlackListTypeEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.JwtUtils;
+import com.github.kokoachino.common.util.TeamContext;
 import com.github.kokoachino.common.util.UserContext;
 import com.github.kokoachino.mapper.BlackListMapper;
 import com.github.kokoachino.model.entity.BlackList;
+import com.github.kokoachino.model.vo.TeamMemberVO;
 import com.github.kokoachino.model.vo.UserVO;
+import com.github.kokoachino.service.TeamService;
 import com.github.kokoachino.service.UserService;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
@@ -30,6 +33,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtils jwtUtils;
     private final UserService userService;
+    private final TeamService teamService;
     private final BlackListMapper blackListMapper;
 
     @Override
@@ -39,28 +43,27 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new BizException(ResultCode.UNAUTHORIZED);
         }
         token = token.substring(7);
-        // 1. 校验 Token 是否在黑名单
         long count = blackListMapper.selectCount(new LambdaQueryWrapper<BlackList>()
                 .eq(BlackList::getType, BlackListTypeEnum.TOKEN.getValue())
                 .eq(BlackList::getValue, token));
         if (count > 0) {
             throw new BizException(ResultCode.UNAUTHORIZED);
         }
-        // 2. 校验 Token 有效性
         if (!jwtUtils.validateToken(token)) {
             throw new BizException(ResultCode.UNAUTHORIZED);
         }
-        // 3. 解析用户并存入上下文
         Integer userId = jwtUtils.getUserIdFromToken(token);
         UserVO userVO = userService.getUserVOById(userId);
         if (userVO == null) {
             throw new BizException(ResultCode.USER_NOT_FOUND);
         }
         UserContext.setUser(userVO);
-        // 4. 检查是否需要续期（剩余有效期 < 7 天）
+        TeamMemberVO teamMemberVO = teamService.getCurrentTeamInfo(userId);
+        if (teamMemberVO != null) {
+            TeamContext.setTeam(teamMemberVO);
+        }
         if (jwtUtils.shouldRenewToken(token)) {
             String newToken = jwtUtils.generateToken(userId);
-            // 通过响应头返回新 Token，前端需要监听此头并替换本地 Token
             response.setHeader("X-New-Token", newToken);
         }
         return true;
@@ -69,5 +72,6 @@ public class AuthInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull Object handler, Exception ex) {
         UserContext.clear();
+        TeamContext.clear();
     }
 }

@@ -1,9 +1,9 @@
 package com.github.kokoachino.controller;
 
 import com.github.kokoachino.common.result.Result;
+import com.github.kokoachino.common.util.TeamContext;
 import com.github.kokoachino.model.vo.PointBalanceVO;
 import com.github.kokoachino.service.PointService;
-import com.github.kokoachino.common.util.UserContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class PointController {
     @GetMapping("/balance")
     @Operation(summary = "获取点数余额", description = "获取当前团队点数余额")
     public Result<PointBalanceVO> getBalance() {
-        Integer teamId = UserContext.getUser().getTeamId();
+        Integer teamId = TeamContext.getTeamId();
         PointBalanceVO vo = pointService.getBalance(teamId);
         return Result.success(vo);
     }

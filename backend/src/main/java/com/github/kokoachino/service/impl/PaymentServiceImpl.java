@@ -10,6 +10,8 @@ import com.alipay.api.response.AlipayTradePrecreateResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
+import com.github.kokoachino.common.util.TeamContext;
+import com.github.kokoachino.common.util.UserContext;
 import com.github.kokoachino.config.AlipayConfig;
 import com.github.kokoachino.config.SystemProperties;
 import com.github.kokoachino.mapper.PaymentOrderMapper;
@@ -19,7 +21,6 @@ import com.github.kokoachino.model.vo.PaymentOrderVO;
 import com.github.kokoachino.service.PaymentService;
 import com.github.kokoachino.service.PointService;
 import com.github.kokoachino.common.util.QrCodeUtil;
-import com.github.kokoachino.common.util.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,12 +53,10 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional(rollbackFor = Exception.class)
     public PaymentOrderVO createOrder(CreatePaymentOrderDTO dto) {
         Integer userId = UserContext.getUserId();
-        Integer teamId = UserContext.getUser().getTeamId();
-        // 计算金额
+        Integer teamId = TeamContext.getTeamId();
         BigDecimal amount = BigDecimal.valueOf(dto.getPoints())
                 .multiply(BigDecimal.valueOf(systemProperties.getPointPrice()))
                 .setScale(2, RoundingMode.HALF_UP);
-        // 创建订单
         PaymentOrder order = new PaymentOrder();
         order.setOrderNo(generateOrderNo());
         order.setTeamId(teamId);
@@ -68,7 +67,6 @@ public class PaymentServiceImpl implements PaymentService {
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
         paymentOrderMapper.insert(order);
-        // 调用支付宝预创建接口
         try {
             AlipayTradePrecreateRequest request = new AlipayTradePrecreateRequest();
             request.setNotifyUrl(alipayConfig.getNotifyUrl());
@@ -81,7 +79,6 @@ public class PaymentServiceImpl implements PaymentService {
             AlipayTradePrecreateResponse response = alipayClient.execute(request);
             if (response.isSuccess()) {
                 log.info("支付宝预创建订单成功：orderNo={}, qrCode={}", order.getOrderNo(), response.getQrCode());
-                // 生成二维码图片
                 String qrCodeBase64 = QrCodeUtil.generateBase64QrCode(response.getQrCode());
                 return PaymentOrderVO.builder()
                         .id(order.getId())
@@ -108,20 +105,17 @@ public class PaymentServiceImpl implements PaymentService {
         if (order == null) {
             throw new BizException(ResultCode.PAYMENT_ORDER_NOT_FOUND);
         }
-        // 如果订单是待支付状态，查询支付宝
         if ("pending".equals(order.getStatus())) {
             try {
                 AlipayTradeQueryRequest request = new AlipayTradeQueryRequest();
                 request.setBizContent("{\"out_trade_no\":\"" + orderNo + "\"}");
                 AlipayTradeQueryResponse response = alipayClient.execute(request);
                 if (response.isSuccess() && "TRADE_SUCCESS".equals(response.getTradeStatus())) {
-                    // 支付成功，更新订单状态
                     order.setStatus("paid");
                     order.setAlipayTradeNo(response.getTradeNo());
                     order.setPaidAt(LocalDateTime.now());
                     order.setUpdatedAt(LocalDateTime.now());
                     paymentOrderMapper.updateById(order);
-                    // 充值点数
                     pointService.rechargePoints(
                             order.getTeamId(), order.getUserId(), order.getPoints(),
                             "payment", order.getOrderNo(),
@@ -147,7 +141,6 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional(rollbackFor = Exception.class)
     public boolean handleAlipayCallback(Map<String, String> params) {
         try {
-            // 验证签名
             boolean signVerified = AlipaySignature.rsaCheckV1(
                     params,
                     alipayConfig.getAlipayPublicKey(),
@@ -158,7 +151,6 @@ public class PaymentServiceImpl implements PaymentService {
                 log.error("支付宝回调签名验证失败");
                 return false;
             }
-            // 获取订单号
             String orderNo = params.get("out_trade_no");
             String tradeStatus = params.get("trade_status");
             String alipayTradeNo = params.get("trade_no");
@@ -167,18 +159,15 @@ public class PaymentServiceImpl implements PaymentService {
                 log.error("支付宝回调订单不存在：orderNo={}", orderNo);
                 return false;
             }
-            // 已处理过的订单直接返回成功
             if ("paid".equals(order.getStatus())) {
                 return true;
             }
-            // 处理支付成功
             if ("TRADE_SUCCESS".equals(tradeStatus) || "TRADE_FINISHED".equals(tradeStatus)) {
                 order.setStatus("paid");
                 order.setAlipayTradeNo(alipayTradeNo);
                 order.setPaidAt(LocalDateTime.now());
                 order.setUpdatedAt(LocalDateTime.now());
                 paymentOrderMapper.updateById(order);
-                // 充值点数
                 pointService.rechargePoints(
                         order.getTeamId(), order.getUserId(), order.getPoints(),
                         "payment", order.getOrderNo(),
@@ -201,9 +190,6 @@ public class PaymentServiceImpl implements PaymentService {
         return "paid".equals(vo.getStatus());
     }
 
-    /**
-     * 生成订单号
-     */
     private String generateOrderNo() {
         return "PO" + System.currentTimeMillis() + String.format("%04d", new Random().nextInt(10000));
     }

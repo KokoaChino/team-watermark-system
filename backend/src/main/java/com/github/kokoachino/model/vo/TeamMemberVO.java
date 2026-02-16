@@ -3,17 +3,18 @@ package com.github.kokoachino.model.vo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
+import java.util.List;
 
 
 /**
- * 团队成员 VO
+ * 团队信息 VO
  *
  * @author Kokoa_Chino
  * @date 2026-02-09
  */
 @Data
 @Builder
-@Schema(description = "团队成员信息")
+@Schema(description = "团队信息")
 public class TeamMemberVO {
 
     @Schema(description = "团队 ID", example = "1")
@@ -34,9 +35,6 @@ public class TeamMemberVO {
     @Schema(description = "当前用户角色：leader-队长，member-成员", example = "member")
     private String role;
 
-    @Schema(description = "当前用户 ID", example = "5")
-    private Integer userId;
-
-    @Schema(description = "当前用户名", example = "zhangsan")
-    private String username;
+    @Schema(description = "团队成员列表")
+    private List<UserVO> members;
 }

@@ -2,6 +2,7 @@ package com.github.kokoachino.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.kokoachino.common.enums.EventTypeEnum;
+import com.github.kokoachino.common.util.TeamContext;
 import com.github.kokoachino.common.util.UserContext;
 import com.github.kokoachino.mapper.OperationLogMapper;
 import com.github.kokoachino.model.dto.OperationLogQueryDTO;
@@ -72,7 +73,7 @@ public class OperationLogServiceImpl implements OperationLogService {
         try {
             Integer userId = UserContext.getUserId();
             String username = UserContext.getUser().getUsername();
-            Integer teamId = UserContext.getUser().getTeamId();
+            Integer teamId = TeamContext.getTeamId();
             log(eventTypeEnum, teamId, userId, username, targetId, targetName, null, null, details);
         } catch (Exception e) {
             log.error("记录操作日志失败", e);
@@ -81,7 +82,7 @@ public class OperationLogServiceImpl implements OperationLogService {
 
     @Override
     public PageVO<OperationLogVO> queryTeamLogs(OperationLogQueryDTO dto) {
-        Integer teamId = UserContext.getUser().getTeamId();
+        Integer teamId = TeamContext.getTeamId();
         Integer offset = (dto.getPage() - 1) * dto.getSize();
         List<OperationLog> logs = operationLogMapper.selectByConditions(
                 teamId,

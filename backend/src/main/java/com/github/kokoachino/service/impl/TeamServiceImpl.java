@@ -18,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -137,7 +139,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                 "previousTeam", "已退出原团队"
         );
         operationLogService.log(EventTypeEnum.TEAM_JOIN, teamId, userId, username, null, team.getName(), null, null, details);
-        return buildTeamMemberVO(teamId, userId, username, TeamRoleEnum.MEMBER.getValue());
+        return buildTeamMemberVO(teamId, TeamRoleEnum.MEMBER.getValue());
     }
 
     @Override
@@ -254,8 +256,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (member == null) {
             return null;
         }
-        User user = userMapper.selectById(userId);
-        return buildTeamMemberVO(member.getTeamId(), userId, user.getUsername(), member.getRole());
+        return buildTeamMemberVO(member.getTeamId(), member.getRole());
     }
 
     @Override
@@ -280,21 +281,49 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         return member != null && TeamRoleEnum.LEADER.getValue().equals(member.getRole());
     }
 
-    private TeamMemberVO buildTeamMemberVO(Integer teamId, Integer userId, String username, String role) {
+    private TeamMemberVO buildTeamMemberVO(Integer teamId, String currentRole) {
         Team team = this.getById(teamId);
         if (team == null) {
             throw new BizException(ResultCode.TEAM_NOT_FOUND);
         }
         User leader = userMapper.selectById(team.getLeaderId());
+        List<TeamMember> members = teamMemberMapper.selectList(
+                new LambdaQueryWrapper<TeamMember>()
+                        .eq(TeamMember::getTeamId, teamId)
+        );
+        List<UserVO> memberVOList = new ArrayList<>();
+        if (leader != null) {
+            memberVOList.add(UserVO.builder()
+                    .id(leader.getId())
+                    .username(leader.getUsername())
+                    .email(leader.getEmail())
+                    .build());
+        }
+        List<UserVO> otherMembers = members.stream()
+                .filter(m -> !m.getUserId().equals(team.getLeaderId()))
+                .map(m -> {
+                    User user = userMapper.selectById(m.getUserId());
+                    if (user != null) {
+                        return UserVO.builder()
+                                .id(user.getId())
+                                .username(user.getUsername())
+                                .email(user.getEmail())
+                                .build();
+                    }
+                    return null;
+                })
+                .filter(java.util.Objects::nonNull)
+                .sorted(Comparator.comparing(u -> com.github.kokoachino.common.util.PinyinUtils.toPinyin(u.getUsername())))
+                .toList();
+        memberVOList.addAll(otherMembers);
         return TeamMemberVO.builder()
                 .teamId(teamId)
                 .teamName(team.getName())
                 .pointBalance(team.getPointBalance())
                 .leaderId(team.getLeaderId())
                 .leaderName(leader != null ? leader.getUsername() : null)
-                .role(role)
-                .userId(userId)
-                .username(username)
+                .role(currentRole)
+                .members(memberVOList)
                 .build();
     }
 }
