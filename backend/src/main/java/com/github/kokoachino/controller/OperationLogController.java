@@ -2,7 +2,6 @@ package com.github.kokoachino.controller;
 
 import com.github.kokoachino.common.result.Result;
 import com.github.kokoachino.model.dto.OperationLogQueryDTO;
-import com.github.kokoachino.common.enums.EventTypeEnum;
 import com.github.kokoachino.model.vo.OperationLogVO;
 import com.github.kokoachino.model.vo.PageVO;
 import com.github.kokoachino.service.OperationLogService;
@@ -10,10 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 
 /**
@@ -35,18 +30,5 @@ public class OperationLogController {
     public Result<PageVO<OperationLogVO>> queryLogs(@RequestBody OperationLogQueryDTO dto) {
         PageVO<OperationLogVO> result = operationLogService.queryTeamLogs(dto);
         return Result.success(result);
-    }
-
-    @GetMapping("/event-types")
-    @Operation(summary = "获取事件类型列表", description = "获取所有支持的事件类型，用于筛选")
-    public Result<List<Map<String, String>>> getEventTypes() {
-        List<Map<String, String>> types = Arrays.stream(EventTypeEnum.values())
-                .map(type -> Map.of(
-                        "code", type.getCode(),
-                        "description", type.getDescription(),
-                        "category", type.getCategory()
-                ))
-                .collect(Collectors.toList());
-        return Result.success(types);
     }
 }
