@@ -83,6 +83,7 @@ public enum ResultCode {
     MEMBER_NOT_FOUND(2203, "成员不存在"),
     CANNOT_LEAVE_PERSONAL_TEAM(2204, "不能退出个人团队"),
     NOT_TEAM_MEMBER(2205, "不是团队成员"),
+    CANNOT_TRANSFER_TO_SELF(2206, "不能将队长身份转让给自己"),
 
     /* ==================== 水印模板相关 (3000-3999) ==================== */
     // 3000-3099：模板基础

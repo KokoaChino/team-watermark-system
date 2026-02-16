@@ -70,12 +70,12 @@ public class TeamController {
     }
 
     @PostMapping("/leave")
-    @Operation(summary = "退出团队", description = "退出当前团队，自动回归个人团队")
-    public Result<Object> leaveTeam() {
+    @Operation(summary = "退出团队", description = "退出当前团队，自动创建个人团队")
+    public Result<TeamMemberVO> leaveTeam() {
         Integer userId = UserContext.getUserId();
         String username = UserContext.getUser().getUsername();
-        teamService.leaveTeam(userId, username);
-        return Result.success(null, "已退出团队");
+        TeamMemberVO newTeamVO = teamService.leaveTeam(userId, username);
+        return Result.success(newTeamVO, "已退出团队");
     }
 
     @PostMapping("/kick")
@@ -93,5 +93,25 @@ public class TeamController {
         Integer userId = UserContext.getUserId();
         TeamMemberVO teamMemberVO = teamService.getCurrentTeamInfo(userId);
         return Result.success(teamMemberVO);
+    }
+
+    @PutMapping("/name")
+    @Operation(summary = "修改团队名称", description = "队长修改当前团队名称")
+    public Result<TeamMemberVO> updateTeamName(@Valid @RequestBody UpdateTeamNameDTO dto) {
+        Integer teamId = TeamContext.getTeamId();
+        Integer userId = UserContext.getUserId();
+        String username = UserContext.getUser().getUsername();
+        TeamMemberVO teamMemberVO = teamService.updateTeamName(teamId, userId, username, dto);
+        return Result.success(teamMemberVO, "团队名称修改成功");
+    }
+
+    @PostMapping("/transfer-leader")
+    @Operation(summary = "转让队长", description = "队长将队长身份转让给其他成员")
+    public Result<TeamMemberVO> transferLeader(@Valid @RequestBody TransferLeaderDTO dto) {
+        Integer teamId = TeamContext.getTeamId();
+        Integer userId = UserContext.getUserId();
+        String username = UserContext.getUser().getUsername();
+        TeamMemberVO teamMemberVO = teamService.transferLeader(teamId, userId, username, dto);
+        return Result.success(teamMemberVO, "队长身份已转让");
     }
 }

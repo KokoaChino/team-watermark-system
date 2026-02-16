@@ -30,6 +30,7 @@ public enum EventTypeEnum {
     TEAM_JOIN("TEAM_JOIN", "加入团队", "团队"),
     TEAM_LEAVE("TEAM_LEAVE", "离开团队", "团队"),
     TEAM_TRANSFER("TEAM_TRANSFER", "队长转移", "团队"),
+    TEAM_UPDATE("TEAM_UPDATE", "团队信息修改", "团队"),
 
     // 字体相关
     FONT_UPLOAD("FONT_UPLOAD", "字体上传", "字体"),

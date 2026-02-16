@@ -74,8 +74,9 @@ public interface TeamService extends IService<Team> {
      *
      * @param userId 用户ID
      * @param username 用户名
+     * @return 新创建的个人团队信息
      */
-    void leaveTeam(Integer userId, String username);
+    TeamMemberVO leaveTeam(Integer userId, String username);
 
     /**
      * 踢出团队成员
@@ -110,4 +111,26 @@ public interface TeamService extends IService<Team> {
      * @return 是否是队长
      */
     boolean isTeamLeader(Integer userId, Integer teamId);
+
+    /**
+     * 修改团队名称
+     *
+     * @param teamId 团队ID
+     * @param userId 操作用户ID
+     * @param username 操作用户名
+     * @param dto 修改团队名称参数
+     * @return 更新后的团队信息
+     */
+    TeamMemberVO updateTeamName(Integer teamId, Integer userId, String username, UpdateTeamNameDTO dto);
+
+    /**
+     * 转让队长身份
+     *
+     * @param teamId 团队ID
+     * @param currentLeaderId 当前队长ID
+     * @param username 当前队长用户名
+     * @param dto 转让队长参数
+     * @return 更新后的团队信息
+     */
+    TeamMemberVO transferLeader(Integer teamId, Integer currentLeaderId, String username, TransferLeaderDTO dto);
 }

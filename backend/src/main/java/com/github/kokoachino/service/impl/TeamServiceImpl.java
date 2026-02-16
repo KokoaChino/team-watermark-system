@@ -206,7 +206,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void leaveTeam(Integer userId, String username) {
+    public TeamMemberVO leaveTeam(Integer userId, String username) {
         TeamMember member = teamMemberMapper.selectOne(
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getUserId, userId)
@@ -222,6 +222,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                 null, null, Map.of("role", member.getRole()));
         teamMemberMapper.deleteById(member.getId());
         createPersonalTeam(userId, username, 0);
+        return buildTeamMemberVO(getCurrentTeamId(userId), TeamRoleEnum.LEADER.getValue());
     }
 
     @Override
@@ -279,6 +280,63 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                         .eq(TeamMember::getTeamId, teamId)
         );
         return member != null && TeamRoleEnum.LEADER.getValue().equals(member.getRole());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TeamMemberVO updateTeamName(Integer teamId, Integer userId, String username, UpdateTeamNameDTO dto) {
+        Team team = this.getById(teamId);
+        if (team == null) {
+            throw new BizException(ResultCode.TEAM_NOT_FOUND);
+        }
+        if (!isTeamLeader(userId, teamId)) {
+            throw new BizException(ResultCode.FORBIDDEN);
+        }
+        String oldName = team.getName();
+        team.setName(dto.getName());
+        this.updateById(team);
+        operationLogService.log(EventTypeEnum.TEAM_UPDATE, teamId, dto.getName(),
+                Map.of("oldName", oldName, "newName", dto.getName()));
+        return buildTeamMemberVO(teamId, TeamRoleEnum.LEADER.getValue());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TeamMemberVO transferLeader(Integer teamId, Integer currentLeaderId, String username, TransferLeaderDTO dto) {
+        Team team = this.getById(teamId);
+        if (team == null) {
+            throw new BizException(ResultCode.TEAM_NOT_FOUND);
+        }
+        if (!isTeamLeader(currentLeaderId, teamId)) {
+            throw new BizException(ResultCode.FORBIDDEN);
+        }
+        Integer newLeaderId = dto.getNewLeaderId();
+        if (newLeaderId.equals(currentLeaderId)) {
+            throw new BizException(ResultCode.CANNOT_TRANSFER_TO_SELF);
+        }
+        TeamMember newLeaderMember = teamMemberMapper.selectOne(
+                new LambdaQueryWrapper<TeamMember>()
+                        .eq(TeamMember::getUserId, newLeaderId)
+                        .eq(TeamMember::getTeamId, teamId)
+        );
+        if (newLeaderMember == null) {
+            throw new BizException(ResultCode.MEMBER_NOT_FOUND);
+        }
+        TeamMember currentLeaderMember = teamMemberMapper.selectOne(
+                new LambdaQueryWrapper<TeamMember>()
+                        .eq(TeamMember::getUserId, currentLeaderId)
+                        .eq(TeamMember::getTeamId, teamId)
+        );
+        currentLeaderMember.setRole(TeamRoleEnum.MEMBER.getValue());
+        teamMemberMapper.updateById(currentLeaderMember);
+        newLeaderMember.setRole(TeamRoleEnum.LEADER.getValue());
+        teamMemberMapper.updateById(newLeaderMember);
+        team.setLeaderId(newLeaderId);
+        this.updateById(team);
+        User newLeader = userMapper.selectById(newLeaderId);
+        operationLogService.log(EventTypeEnum.TEAM_TRANSFER, teamId, team.getName(),
+                Map.of("oldLeaderId", currentLeaderId, "newLeaderId", newLeaderId, "newLeaderName", newLeader.getUsername()));
+        return buildTeamMemberVO(teamId, TeamRoleEnum.MEMBER.getValue());
     }
 
     private TeamMemberVO buildTeamMemberVO(Integer teamId, String currentRole) {
