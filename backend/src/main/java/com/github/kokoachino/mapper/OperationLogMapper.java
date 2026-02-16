@@ -41,4 +41,9 @@ public interface OperationLogMapper extends BaseMapper<OperationLog> {
                            @Param("userId") Integer userId,
                            @Param("startTime") LocalDateTime startTime,
                            @Param("endTime") LocalDateTime endTime);
+
+    /**
+     * 根据邀请码ID查询加入团队记录
+     */
+    List<OperationLog> selectInviteRecordsByInviteCodeId(@Param("inviteCodeId") Integer inviteCodeId);
 }

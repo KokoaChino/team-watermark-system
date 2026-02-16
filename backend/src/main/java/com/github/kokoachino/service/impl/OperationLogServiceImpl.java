@@ -46,7 +46,6 @@ public class OperationLogServiceImpl implements OperationLogService {
             operationLog.setUsername(username);
             operationLog.setTargetId(targetId);
             operationLog.setTargetName(targetName);
-            // 序列化数据
             if (beforeData != null) {
                 operationLog.setBeforeData(objectMapper.writeValueAsString(beforeData));
             }
@@ -56,14 +55,12 @@ public class OperationLogServiceImpl implements OperationLogService {
             if (details != null) {
                 operationLog.setDetails(objectMapper.writeValueAsString(details));
             }
-            // 获取请求信息
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
                 operationLog.setIpAddress(getClientIp(request));
             }
             operationLog.setCreatedAt(LocalDateTime.now());
-            operationLog.setCreatedBy(username);
             operationLogMapper.insert(operationLog);
         } catch (Exception e) {
             log.error("记录操作日志失败", e);
@@ -86,7 +83,6 @@ public class OperationLogServiceImpl implements OperationLogService {
     public PageVO<OperationLogVO> queryTeamLogs(OperationLogQueryDTO dto) {
         Integer teamId = UserContext.getUser().getTeamId();
         Integer offset = (dto.getPage() - 1) * dto.getSize();
-        // 查询数据
         List<OperationLog> logs = operationLogMapper.selectByConditions(
                 teamId,
                 dto.getEventType(),
@@ -96,7 +92,6 @@ public class OperationLogServiceImpl implements OperationLogService {
                 offset,
                 dto.getSize()
         );
-        // 统计总数
         Long total = operationLogMapper.countByConditions(
                 teamId,
                 dto.getEventType(),
@@ -104,7 +99,6 @@ public class OperationLogServiceImpl implements OperationLogService {
                 dto.getStartTime(),
                 dto.getEndTime()
         );
-        // 转换为VO
         List<OperationLogVO> voList = logs.stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
@@ -116,9 +110,6 @@ public class OperationLogServiceImpl implements OperationLogService {
                 .build();
     }
 
-    /**
-     * 转换为VO
-     */
     private OperationLogVO convertToVO(OperationLog log) {
         return OperationLogVO.builder()
                 .id(log.getId())
@@ -138,9 +129,6 @@ public class OperationLogServiceImpl implements OperationLogService {
                 .build();
     }
 
-    /**
-     * 获取客户端IP
-     */
     private String getClientIp(HttpServletRequest request) {
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
@@ -152,7 +140,6 @@ public class OperationLogServiceImpl implements OperationLogService {
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getRemoteAddr();
         }
-        // 多个代理情况，取第一个IP
         if (ip != null && ip.contains(",")) {
             ip = ip.split(",")[0].trim();
         }

@@ -1,8 +1,6 @@
 package com.github.kokoachino.service;
 
-import com.github.kokoachino.model.vo.PageVO;
 import com.github.kokoachino.model.vo.PointBalanceVO;
-import com.github.kokoachino.model.vo.PointTransactionVO;
 
 
 /**
@@ -59,16 +57,6 @@ public interface PointService {
      * @return 是否成功
      */
     boolean rechargePoints(Integer teamId, Integer userId, Integer points, String bizType, String bizId, String description);
-
-    /**
-     * 获取点数流水
-     *
-     * @param teamId 团队ID
-     * @param page   页码
-     * @param size   每页条数
-     * @return 分页流水数据
-     */
-    PageVO<PointTransactionVO> getTransactions(Integer teamId, Integer page, Integer size);
 
     /**
      * 检查点数是否充足

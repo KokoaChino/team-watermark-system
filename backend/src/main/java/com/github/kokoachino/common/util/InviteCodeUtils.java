@@ -70,7 +70,7 @@ public class InviteCodeUtils {
      * @return 分享文本
      */
     public static String generateShareText(String teamName, String rawCode) {
-        return String.format("快来加入%s团队%s，一起协作处理图片水印吧！",
+        return String.format("快来加入%s%s，一起协作处理图片水印吧！",
                 teamName, wrapCode(rawCode));
     }
 

@@ -48,4 +48,12 @@
         </if>
     </select>
 
+    <!-- 根据邀请码ID查询加入团队记录 -->
+    <select id="selectInviteRecordsByInviteCodeId" resultType="com.github.kokoachino.model.entity.OperationLog">
+        SELECT * FROM tw_operation_log
+        WHERE event_type = 'TEAM_JOIN'
+          AND JSON_EXTRACT(details, '$.inviteCodeId') = #{inviteCodeId}
+        ORDER BY created_at DESC
+    </select>
+
 </mapper>

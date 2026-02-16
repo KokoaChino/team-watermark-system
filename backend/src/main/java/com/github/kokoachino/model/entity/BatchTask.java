@@ -84,10 +84,4 @@ public class BatchTask {
 
     @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
-
-    @TableField(fill = FieldFill.INSERT)
-    private String createdBy;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private String updatedBy;
 }

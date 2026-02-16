@@ -1,16 +1,11 @@
 package com.github.kokoachino.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.github.kokoachino.common.enums.EventTypeEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
-import com.github.kokoachino.mapper.PointTransactionMapper;
 import com.github.kokoachino.mapper.TeamMapper;
-import com.github.kokoachino.model.entity.PointTransaction;
 import com.github.kokoachino.model.entity.Team;
-import com.github.kokoachino.model.vo.PageVO;
 import com.github.kokoachino.model.vo.PointBalanceVO;
-import com.github.kokoachino.model.vo.PointTransactionVO;
 import com.github.kokoachino.service.OperationLogService;
 import com.github.kokoachino.service.PointService;
 import lombok.RequiredArgsConstructor;
@@ -19,12 +14,9 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 
 /**
@@ -39,7 +31,6 @@ import java.util.stream.Collectors;
 public class PointServiceImpl implements PointService {
 
     private final TeamMapper teamMapper;
-    private final PointTransactionMapper pointTransactionMapper;
     private final RedissonClient redissonClient;
     private final OperationLogService operationLogService;
 
@@ -81,32 +72,16 @@ public class PointServiceImpl implements PointService {
                 }
                 int balanceBefore = team.getPointBalance();
                 int balanceAfter = balanceBefore - points;
-                // 更新余额
                 team.setPointBalance(balanceAfter);
                 teamMapper.updateById(team);
-                // 记录流水
-                PointTransaction transaction = new PointTransaction();
-                transaction.setTeamId(teamId);
-                transaction.setUserId(userId);
-                transaction.setType("deduct");
-                transaction.setPoints(-points);
-                transaction.setBalanceBefore(balanceBefore);
-                transaction.setBalanceAfter(balanceAfter);
-                transaction.setBizType(bizType);
-                transaction.setBizId(bizId);
-                transaction.setDescription(description);
-                transaction.setCreatedAt(LocalDateTime.now());
-                transaction.setUpdatedAt(LocalDateTime.now());
-                pointTransactionMapper.insert(transaction);
                 log.info("预扣点数成功：teamId={}, points={}, balanceAfter={}", teamId, points, balanceAfter);
-                // 记录操作日志
                 Map<String, Object> details = new HashMap<>();
                 details.put("points", points);
                 details.put("balanceBefore", balanceBefore);
                 details.put("balanceAfter", balanceAfter);
                 details.put("bizType", bizType);
                 details.put("bizId", bizId);
-                operationLogService.log(EventTypeEnum.POINT_DEDUCT, null, description, details);
+                operationLogService.log(EventTypeEnum.POINT_DEDUCT, teamId, userId, null, null, description, null, null, details);
                 return true;
             } finally {
                 lock.unlock();
@@ -137,32 +112,16 @@ public class PointServiceImpl implements PointService {
                 }
                 int balanceBefore = team.getPointBalance();
                 int balanceAfter = balanceBefore + points;
-                // 更新余额
                 team.setPointBalance(balanceAfter);
                 teamMapper.updateById(team);
-                // 记录流水
-                PointTransaction transaction = new PointTransaction();
-                transaction.setTeamId(teamId);
-                transaction.setUserId(userId);
-                transaction.setType("refund");
-                transaction.setPoints(points);
-                transaction.setBalanceBefore(balanceBefore);
-                transaction.setBalanceAfter(balanceAfter);
-                transaction.setBizType(bizType);
-                transaction.setBizId(bizId);
-                transaction.setDescription(description);
-                transaction.setCreatedAt(LocalDateTime.now());
-                transaction.setUpdatedAt(LocalDateTime.now());
-                pointTransactionMapper.insert(transaction);
                 log.info("返还点数成功：teamId={}, points={}, balanceAfter={}", teamId, points, balanceAfter);
-                // 记录操作日志
                 Map<String, Object> details = new HashMap<>();
                 details.put("points", points);
                 details.put("balanceBefore", balanceBefore);
                 details.put("balanceAfter", balanceAfter);
                 details.put("bizType", bizType);
                 details.put("bizId", bizId);
-                operationLogService.log(EventTypeEnum.POINT_REFUND, null, description, details);
+                operationLogService.log(EventTypeEnum.POINT_REFUND, teamId, userId, null, null, description, null, null, details);
                 return true;
             } finally {
                 lock.unlock();
@@ -193,32 +152,16 @@ public class PointServiceImpl implements PointService {
                 }
                 int balanceBefore = team.getPointBalance();
                 int balanceAfter = balanceBefore + points;
-                // 更新余额
                 team.setPointBalance(balanceAfter);
                 teamMapper.updateById(team);
-                // 记录流水
-                PointTransaction transaction = new PointTransaction();
-                transaction.setTeamId(teamId);
-                transaction.setUserId(userId);
-                transaction.setType("recharge");
-                transaction.setPoints(points);
-                transaction.setBalanceBefore(balanceBefore);
-                transaction.setBalanceAfter(balanceAfter);
-                transaction.setBizType(bizType);
-                transaction.setBizId(bizId);
-                transaction.setDescription(description);
-                transaction.setCreatedAt(LocalDateTime.now());
-                transaction.setUpdatedAt(LocalDateTime.now());
-                pointTransactionMapper.insert(transaction);
                 log.info("充值点数成功：teamId={}, points={}, balanceAfter={}", teamId, points, balanceAfter);
-                // 记录操作日志
                 Map<String, Object> details = new HashMap<>();
                 details.put("points", points);
                 details.put("balanceBefore", balanceBefore);
                 details.put("balanceAfter", balanceAfter);
                 details.put("bizType", bizType);
                 details.put("bizId", bizId);
-                operationLogService.log(EventTypeEnum.POINT_RECHARGE, null, description, details);
+                operationLogService.log(EventTypeEnum.POINT_RECHARGE, teamId, userId, null, null, description, null, null, details);
                 return true;
             } finally {
                 lock.unlock();
@@ -227,41 +170,6 @@ public class PointServiceImpl implements PointService {
             Thread.currentThread().interrupt();
             throw new BizException(ResultCode.LOCK_ACQUIRE_FAILED);
         }
-    }
-
-    @Override
-    public PageVO<PointTransactionVO> getTransactions(Integer teamId, Integer page, Integer size) {
-        // 计算偏移量
-        int offset = (page - 1) * size;
-        // 查询总数
-        LambdaQueryWrapper<PointTransaction> countWrapper = new LambdaQueryWrapper<>();
-        countWrapper.eq(PointTransaction::getTeamId, teamId);
-        Long total = pointTransactionMapper.selectCount(countWrapper);
-        // 查询数据
-        LambdaQueryWrapper<PointTransaction> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PointTransaction::getTeamId, teamId)
-                .orderByDesc(PointTransaction::getCreatedAt)
-                .last("LIMIT " + offset + ", " + size);
-        List<PointTransaction> transactions = pointTransactionMapper.selectList(wrapper);
-        // 转换为VO
-        List<PointTransactionVO> voList = transactions.stream()
-                .map(t -> PointTransactionVO.builder()
-                        .id(t.getId())
-                        .type(t.getType())
-                        .points(t.getPoints())
-                        .balanceBefore(t.getBalanceBefore())
-                        .balanceAfter(t.getBalanceAfter())
-                        .bizType(t.getBizType())
-                        .description(t.getDescription())
-                        .createdAt(t.getCreatedAt())
-                        .build())
-                .collect(Collectors.toList());
-        return PageVO.<PointTransactionVO>builder()
-                .list(voList)
-                .total(total)
-                .page(page)
-                .size(size)
-                .build();
     }
 
     @Override

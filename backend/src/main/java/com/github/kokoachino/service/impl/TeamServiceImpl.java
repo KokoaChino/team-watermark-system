@@ -35,20 +35,18 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
 
     private final TeamMemberMapper teamMemberMapper;
     private final TeamInviteCodeMapper inviteCodeMapper;
-    private final TeamInviteRecordMapper inviteRecordMapper;
     private final UserMapper userMapper;
+    private final OperationLogMapper operationLogMapper;
     private final OperationLogService operationLogService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Integer createPersonalTeam(Integer userId, String username, Integer initialPoints) {
-        // 1. 创建团队
         Team team = new Team();
         team.setName(username + "的个人团队");
         team.setPointBalance(initialPoints);
         team.setLeaderId(userId);
         this.save(team);
-        // 2. 添加成员关系
         TeamMember member = new TeamMember();
         member.setTeamId(team.getId());
         member.setUserId(userId);
@@ -60,7 +58,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     @Override
     @Transactional(rollbackFor = Exception.class)
     public InviteCodeVO generateInviteCode(Integer teamId, GenerateInviteCodeDTO dto, String username) {
-        // 1. 生成唯一邀请码
         String rawCode;
         do {
             rawCode = InviteCodeUtils.generateRawCode();
@@ -68,7 +65,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                 new LambdaQueryWrapper<TeamInviteCode>()
                         .eq(TeamInviteCode::getCode, rawCode)
         ) > 0);
-        // 2. 创建邀请码记录
         TeamInviteCode inviteCode = new TeamInviteCode();
         inviteCode.setTeamId(teamId);
         inviteCode.setCode(rawCode);
@@ -77,7 +73,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         inviteCode.setUsesCount(0);
         inviteCode.setStatus(InviteCodeStatusEnum.ACTIVE.getValue());
         inviteCodeMapper.insert(inviteCode);
-        // 3. 获取团队名称
         Team team = this.getById(teamId);
         String shareText = InviteCodeUtils.generateShareText(team.getName(), rawCode);
         return InviteCodeVO.builder()
@@ -95,12 +90,10 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TeamMemberVO joinTeam(Integer userId, String username, JoinTeamDTO dto) {
-        // 1. 从文本中提取邀请码
         String rawCode = InviteCodeUtils.extractCodeFromText(dto.getInviteCodeText());
         if (rawCode == null) {
             throw new BizException(ResultCode.INVITE_CODE_INVALID);
         }
-        // 2. 查询邀请码
         TeamInviteCode inviteCode = inviteCodeMapper.selectOne(
                 new LambdaQueryWrapper<TeamInviteCode>()
                         .eq(TeamInviteCode::getCode, rawCode)
@@ -108,20 +101,16 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (inviteCode == null) {
             throw new BizException(ResultCode.INVITE_CODE_INVALID);
         }
-        // 3. 校验邀请码状态
         if (!InviteCodeStatusEnum.ACTIVE.getValue().equals(inviteCode.getStatus())) {
             throw new BizException(ResultCode.INVITE_CODE_INVALID);
         }
-        // 4. 校验是否过期（validUntil为null表示永不过期）
         if (inviteCode.getValidUntil() != null && inviteCode.getValidUntil().isBefore(LocalDateTime.now())) {
             throw new BizException(ResultCode.INVITE_CODE_EXPIRED);
         }
-        // 5. 校验使用次数（maxUses为null表示无限制）
         if (inviteCode.getMaxUses() != null && inviteCode.getUsesCount() >= inviteCode.getMaxUses()) {
             throw new BizException(ResultCode.INVITE_CODE_USED_UP);
         }
         Integer teamId = inviteCode.getTeamId();
-        // 6. 检查用户是否已在该团队中
         TeamMember existingMember = teamMemberMapper.selectOne(
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getUserId, userId)
@@ -130,32 +119,24 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (existingMember != null) {
             throw new BizException(ResultCode.ALREADY_IN_TEAM);
         }
-        // 7. 删除用户原有的团队成员关系（退出原团队）
         teamMemberMapper.delete(
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getUserId, userId)
         );
-        // 8. 添加到新团队
         TeamMember newMember = new TeamMember();
         newMember.setTeamId(teamId);
         newMember.setUserId(userId);
         newMember.setRole(TeamRoleEnum.MEMBER.getValue());
         teamMemberMapper.insert(newMember);
-        // 9. 更新邀请码使用次数
         inviteCode.setUsesCount(inviteCode.getUsesCount() + 1);
         inviteCodeMapper.updateById(inviteCode);
-        // 10. 记录邀请记录
-        TeamInviteRecord record = new TeamInviteRecord();
-        record.setInviteCodeId(inviteCode.getId());
-        record.setTeamId(teamId);
-        record.setUserId(userId);
-        record.setUsername(username);
-        inviteRecordMapper.insert(record);
-        // 11. 记录操作日志
         Team team = this.getById(teamId);
-        operationLogService.log(EventTypeEnum.TEAM_JOIN, teamId, team.getName(),
-                Map.of("inviteCode", rawCode, "previousTeam", "已退出原团队"));
-        // 12. 返回团队信息
+        Map<String, Object> details = Map.of(
+                "inviteCode", rawCode,
+                "inviteCodeId", inviteCode.getId(),
+                "previousTeam", "已退出原团队"
+        );
+        operationLogService.log(EventTypeEnum.TEAM_JOIN, teamId, userId, username, null, team.getName(), null, null, details);
         return buildTeamMemberVO(teamId, userId, username, TeamRoleEnum.MEMBER.getValue());
     }
 
@@ -200,19 +181,30 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
 
     @Override
     public List<InviteRecordVO> getInviteRecords(Integer codeId) {
-        List<TeamInviteRecord> records = inviteRecordMapper.selectByInviteCodeId(codeId);
-        return records.stream().map(record -> InviteRecordVO.builder()
-                .id(record.getId())
-                .userId(record.getUserId())
-                .username(record.getUsername())
-                .joinedAt(record.getCreatedAt())
-                .build()).collect(Collectors.toList());
+        List<OperationLog> logs = operationLogMapper.selectInviteRecordsByInviteCodeId(codeId);
+        return logs.stream().map(log -> {
+            String inviteCode = null;
+            if (log.getDetails() != null) {
+                try {
+                    com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    Map<String, Object> details = objectMapper.readValue(log.getDetails(), Map.class);
+                    inviteCode = (String) details.get("inviteCode");
+                } catch (Exception ignored) {
+                }
+            }
+            return InviteRecordVO.builder()
+                    .id(log.getId())
+                    .inviteCode(inviteCode)
+                    .userId(log.getUserId())
+                    .username(log.getUsername())
+                    .joinedAt(log.getCreatedAt())
+                    .build();
+        }).collect(Collectors.toList());
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void leaveTeam(Integer userId, String username) {
-        // 1. 获取用户当前团队
         TeamMember member = teamMemberMapper.selectOne(
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getUserId, userId)
@@ -220,24 +212,19 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (member == null) {
             throw new BizException(ResultCode.MEMBER_NOT_FOUND);
         }
-        // 2. 检查是否是个人团队（队长不能退出自己的个人团队）
         Team team = this.getById(member.getTeamId());
         if (TeamRoleEnum.LEADER.getValue().equals(member.getRole()) && team.getLeaderId().equals(userId)) {
             throw new BizException(ResultCode.CANNOT_LEAVE_PERSONAL_TEAM);
         }
-        // 3. 记录操作日志
-        operationLogService.log(EventTypeEnum.TEAM_LEAVE, team.getId(), team.getName(),
-                Map.of("role", member.getRole()));
-        // 4. 删除团队成员关系
+        operationLogService.log(EventTypeEnum.TEAM_LEAVE, team.getId(), userId, username, null, team.getName(),
+                null, null, Map.of("role", member.getRole()));
         teamMemberMapper.deleteById(member.getId());
-        // 5. 创建新的个人团队
         createPersonalTeam(userId, username, 0);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void kickMember(Integer teamId, Integer targetUserId, String operatorUsername) {
-        // 1. 检查目标用户是否在团队中
         TeamMember targetMember = teamMemberMapper.selectOne(
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getUserId, targetUserId)
@@ -246,7 +233,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (targetMember == null) {
             throw new BizException(ResultCode.MEMBER_NOT_FOUND);
         }
-        // 2. 不能踢出自己
         if (targetUserId.equals(teamMemberMapper.selectOne(
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getTeamId, teamId)
@@ -254,11 +240,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         ).getUserId())) {
             throw new BizException(ResultCode.CANNOT_KICK_SELF);
         }
-        // 3. 删除成员关系
         teamMemberMapper.deleteById(targetMember.getId());
-        // 4. 获取被踢出用户的信息
         User targetUser = userMapper.selectById(targetUserId);
-        // 5. 为被踢出用户创建个人团队
         createPersonalTeam(targetUserId, targetUser.getUsername(), 0);
     }
 
@@ -275,9 +258,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         return buildTeamMemberVO(member.getTeamId(), userId, user.getUsername(), member.getRole());
     }
 
-    /**
-     * 构建团队成员VO
-     */
     @Override
     public Integer getCurrentTeamId(Integer userId) {
         TeamMember member = teamMemberMapper.selectOne(

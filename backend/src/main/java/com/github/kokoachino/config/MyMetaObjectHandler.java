@@ -19,13 +19,10 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
     public void insertFill(MetaObject metaObject) {
         this.strictInsertFill(metaObject, "createdAt", LocalDateTime.class, LocalDateTime.now());
         this.strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());
-        this.strictInsertFill(metaObject, "createdBy", String.class, "system");
-        this.strictInsertFill(metaObject, "updatedBy", String.class, "system");
     }
 
     @Override
     public void updateFill(MetaObject metaObject) {
         this.strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());
-        this.strictUpdateFill(metaObject, "updatedBy", String.class, "system");
     }
 }

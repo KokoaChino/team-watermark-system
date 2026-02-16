@@ -1,18 +1,14 @@
 package com.github.kokoachino.controller;
 
 import com.github.kokoachino.common.result.Result;
-import com.github.kokoachino.model.vo.PageVO;
 import com.github.kokoachino.model.vo.PointBalanceVO;
-import com.github.kokoachino.model.vo.PointTransactionVO;
 import com.github.kokoachino.service.PointService;
 import com.github.kokoachino.common.util.UserContext;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 
@@ -36,17 +32,5 @@ public class PointController {
         Integer teamId = UserContext.getUser().getTeamId();
         PointBalanceVO vo = pointService.getBalance(teamId);
         return Result.success(vo);
-    }
-
-    @GetMapping("/transactions")
-    @Operation(summary = "获取点数流水", description = "分页获取团队点数交易记录")
-    public Result<PageVO<PointTransactionVO>> getTransactions(
-            @Parameter(description = "页码，从1开始", example = "1")
-            @RequestParam(defaultValue = "1") Integer page,
-            @Parameter(description = "每页条数", example = "20")
-            @RequestParam(defaultValue = "20") Integer size) {
-        Integer teamId = UserContext.getUser().getTeamId();
-        PageVO<PointTransactionVO> transactions = pointService.getTransactions(teamId, page, size);
-        return Result.success(transactions);
     }
 }
