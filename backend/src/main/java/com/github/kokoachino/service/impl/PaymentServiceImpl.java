@@ -10,6 +10,7 @@ import com.alipay.api.response.AlipayTradePrecreateResponse;
 import com.alipay.api.response.AlipayTradeQueryResponse;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
+import com.github.kokoachino.common.util.RandomStringUtils;
 import com.github.kokoachino.common.util.TeamContext;
 import com.github.kokoachino.common.util.UserContext;
 import com.github.kokoachino.config.AlipayConfig;
@@ -28,8 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 
 /**
@@ -54,8 +56,12 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentOrderVO createOrder(CreatePaymentOrderDTO dto) {
         Integer userId = UserContext.getUserId();
         Integer teamId = TeamContext.getTeamId();
+        int maxPoints = systemProperties.getPoint().getMaxPointsPerOrder();
+        if (dto.getPoints() > maxPoints) {
+            throw new BizException(ResultCode.PAYMENT_POINTS_EXCEED_LIMIT);
+        }
         BigDecimal amount = BigDecimal.valueOf(dto.getPoints())
-                .multiply(BigDecimal.valueOf(systemProperties.getPointPrice()))
+                .multiply(BigDecimal.valueOf(systemProperties.getPoint().getPrice()))
                 .setScale(2, RoundingMode.HALF_UP);
         PaymentOrder order = new PaymentOrder();
         order.setOrderNo(generateOrderNo());
@@ -74,7 +80,7 @@ public class PaymentServiceImpl implements PaymentService {
             model.setOutTradeNo(order.getOrderNo());
             model.setTotalAmount(amount.toString());
             model.setSubject("水印系统点数充值 - " + dto.getPoints() + "点");
-            model.setBody("购买点数：" + dto.getPoints() + "点，单价：" + systemProperties.getPointPrice() + "元/点");
+            model.setBody("购买点数：" + dto.getPoints() + "点，单价：" + systemProperties.getPoint().getPrice() + "元/点");
             request.setBizModel(model);
             AlipayTradePrecreateResponse response = alipayClient.execute(request);
             if (response.isSuccess()) {
@@ -191,6 +197,9 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private String generateOrderNo() {
-        return "PO" + System.currentTimeMillis() + String.format("%04d", new Random().nextInt(10000));
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String randomNum = String.format("%05d", ThreadLocalRandom.current().nextInt(100000));
+        String randomStr = RandomStringUtils.generate(12);
+        return String.format("PAY%s-%s-%s", randomNum, date, randomStr);
     }
 }

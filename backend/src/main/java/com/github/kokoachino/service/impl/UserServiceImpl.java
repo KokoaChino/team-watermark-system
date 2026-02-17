@@ -122,7 +122,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         long isBlacklisted = blackListMapper.selectCount(new LambdaQueryWrapper<BlackList>()
                 .eq(BlackList::getType, BlackListTypeEnum.EMAIL.getValue())
                 .eq(BlackList::getValue, registerDTO.getEmail()));
-        int initialPoints = isBlacklisted > 0 ? 0 : systemProperties.getInitialPoints();
+        int initialPoints = isBlacklisted > 0 ? 0 : systemProperties.getPoint().getInitialPoints();
         teamService.createPersonalTeam(user.getId(), user.getUsername(), initialPoints);
     }
 

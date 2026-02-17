@@ -16,10 +16,6 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "system")
 public class SystemProperties {
 
-    private Integer initialPoints;
-
-    private Double pointPrice;
-
     private CaptchaConfig captcha = new CaptchaConfig();
 
     private EmailCodeConfig emailCode = new EmailCodeConfig();
@@ -29,6 +25,8 @@ public class SystemProperties {
     private QrCodeConfig qrCode = new QrCodeConfig();
 
     private TemplateConfig template = new TemplateConfig();
+
+    private PointConfig point = new PointConfig();
 
     @Data
     public static class CaptchaConfig {
@@ -63,5 +61,12 @@ public class SystemProperties {
         private Integer defaultHeight;
         private String defaultBackgroundColor;
         private String defaultName;
+    }
+
+    @Data
+    public static class PointConfig {
+        private Integer initialPoints;
+        private Double price;
+        private Integer maxPointsPerOrder;
     }
 }

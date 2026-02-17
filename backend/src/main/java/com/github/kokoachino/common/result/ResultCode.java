@@ -133,6 +133,7 @@ public enum ResultCode {
     PAYMENT_VERIFY_FAILED(5102, "支付验证失败"),
     PAYMENT_ALREADY_PAID(5103, "订单已支付"),
     PAYMENT_AMOUNT_INVALID(5104, "支付金额无效"),
+    PAYMENT_POINTS_EXCEED_LIMIT(5105, "单次购买点数超过上限"),
 
     // 5200-5299：退款相关（预留）
 

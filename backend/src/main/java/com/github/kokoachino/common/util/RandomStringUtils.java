@@ -4,12 +4,12 @@ import java.util.concurrent.ThreadLocalRandom;
 
 
 /**
- * 密钥生成工具类
+ * 随机字符串工具类
  *
  * @author kokoachino
  * @date 2026-01-31
  */
-public class KeyGeneratorUtils {
+public class RandomStringUtils {
 
     private static final char[] CHARS =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".toCharArray();

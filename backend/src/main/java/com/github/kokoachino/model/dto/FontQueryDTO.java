@@ -2,6 +2,7 @@ package com.github.kokoachino.model.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import org.springdoc.core.annotations.ParameterObject;
 
 
 /**
@@ -11,6 +12,7 @@ import lombok.Data;
  * @date 2026-02-16
  */
 @Data
+@ParameterObject
 @Schema(description = "字体查询条件")
 public class FontQueryDTO {
 

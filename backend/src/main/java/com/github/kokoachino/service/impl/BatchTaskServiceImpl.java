@@ -3,6 +3,7 @@ package com.github.kokoachino.service.impl;
 import com.github.kokoachino.common.enums.EventTypeEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
+import com.github.kokoachino.common.util.RandomStringUtils;
 import com.github.kokoachino.common.util.TeamContext;
 import com.github.kokoachino.common.util.UserContext;
 import com.github.kokoachino.config.SystemProperties;
@@ -22,8 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 
@@ -174,7 +176,10 @@ public class BatchTaskServiceImpl implements BatchTaskService {
     }
 
     private String generateTaskNo() {
-        return "BT" + System.currentTimeMillis() + String.format("%04d", new Random().nextInt(10000));
+        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String randomNum = String.format("%05d", ThreadLocalRandom.current().nextInt(100000));
+        String randomStr = RandomStringUtils.generate(12);
+        return String.format("TSK%s-%s-%s", randomNum, date, randomStr);
     }
 
     private BatchTaskVO convertToVO(BatchTask task) {

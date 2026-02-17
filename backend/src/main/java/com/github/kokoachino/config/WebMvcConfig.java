@@ -32,7 +32,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/auth/register",
                         "/api/auth/send-code",
                         "/api/auth/captcha",
-                        "/api/auth/forgot-password"
+                        "/api/auth/forgot-password",
+                        "/api/enums/**"
                 );
     }
 }

@@ -1,6 +1,8 @@
 system: # 系统配置
-  initial-points: 10000 # 初始点数
-  point-price: 0.01 # 点数单价（元/点）
+  point: # 点数配置
+    initial-points: 10000 # 初始点数
+    price: 0.01 # 点数单价（元/点）
+    max-points-per-order: 1000000 # 单次购买点数上限
   captcha: # 图形验证码配置
     width: 120 # 验证码宽度
     height: 40 # 验证码高度
