@@ -111,8 +111,14 @@ public enum ResultCode {
 
     // 4100-4199：Excel解析
     EXCEL_PARSE_ERROR(4100, "Excel解析失败"),
-    EXCEL_STRUCTURE_INVALID(4101, "Excel结构不正确"),
-    IMAGE_NOT_FOUND_IN_EXCEL(4102, "Excel中未找到对应的图片配置"),
+    EXCEL_EMPTY(4101, "Excel文件为空"),
+    EXCEL_MISSING_ID_COLUMN(4102, "ID映射模式下，表头必须包含id列"),
+    EXCEL_DUPLICATE_ID(4103, "存在重复的图片ID"),
+    EXCEL_INVALID_CHAR_IN_RENAME(4104, "重命名包含非法字符"),
+    EXCEL_INVALID_CHAR_IN_PATH(4105, "文件路径包含非法字符"),
+    EXCEL_INVALID_EXTENSION(4106, "扩展名包含非法字符"),
+    EXCEL_READ_FAILED(4107, "Excel文件读取失败"),
+    IMAGE_NOT_FOUND_IN_EXCEL(4108, "Excel中未找到对应的图片配置"),
 
     // 4200-4299：任务执行（预留）
 
