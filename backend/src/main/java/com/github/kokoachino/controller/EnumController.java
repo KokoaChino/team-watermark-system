@@ -121,4 +121,55 @@ public class EnumController {
                 .collect(Collectors.toList());
         return Result.success(types);
     }
+
+    @GetMapping("/mapping-modes")
+    @Operation(summary = "获取Excel映射模式列表", description = "获取所有Excel映射模式，用于Excel解析接口")
+    public Result<List<Map<String, String>>> getMappingModes() {
+        List<Map<String, String>> types = Arrays.stream(MappingModeEnum.values())
+                .map(type -> Map.of(
+                        "value", type.getValue(),
+                        "description", type.getDescription()
+                ))
+                .collect(Collectors.toList());
+        return Result.success(types);
+    }
+
+    @GetMapping("/duplicate-handlings")
+    @Operation(summary = "获取重复ID处理策略列表", description = "获取所有重复ID处理策略，用于Excel解析接口")
+    public Result<List<Map<String, String>>> getDuplicateHandlings() {
+        List<Map<String, String>> types = Arrays.stream(DuplicateHandlingEnum.values())
+                .map(type -> Map.of(
+                        "value", type.getValue(),
+                        "description", type.getDescription()
+                ))
+                .collect(Collectors.toList());
+        return Result.success(types);
+    }
+
+    @GetMapping("/invalid-char-handlings")
+    @Operation(summary = "获取异常字符处理策略列表", description = "获取所有异常字符处理策略，用于Excel解析接口")
+    public Result<List<Map<String, String>>> getInvalidCharHandlings() {
+        List<Map<String, String>> types = Arrays.stream(InvalidCharHandlingEnum.values())
+                .map(type -> Map.of(
+                        "value", type.getValue(),
+                        "description", type.getDescription()
+                ))
+                .collect(Collectors.toList());
+        return Result.success(types);
+    }
+
+    @GetMapping("/excel-headers")
+    @Operation(summary = "获取Excel表头类型列表", description = "获取所有支持的Excel表头类型，用于前端展示")
+    public Result<List<Map<String, Object>>> getExcelHeaders() {
+        List<Map<String, Object>> types = Arrays.stream(HeaderEnum.values())
+                .map(type -> {
+                    Map<String, Object> map = new java.util.HashMap<>();
+                    map.put("value", type.getValue());
+                    map.put("description", type.getDescription());
+                    map.put("multiColumn", type.isMultiColumn());
+                    return map;
+                })
+                .collect(Collectors.toList());
+        return Result.success(types);
+    }
 }
