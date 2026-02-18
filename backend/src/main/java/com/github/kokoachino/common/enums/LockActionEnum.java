@@ -28,22 +28,22 @@ public enum LockActionEnum {
     /**
      * 水印模板编辑
      */
-    TEMPLATE_EDIT("template:edit", "编辑水印模板"),
+    TEMPLATE_EDIT("template：edit", "编辑水印模板"),
 
     /**
      * 水印模板提交
      */
-    TEMPLATE_SUBMIT("template:submit", "提交水印模板"),
+    TEMPLATE_SUBMIT("template：submit", "提交水印模板"),
 
     /**
      * 字体上传
      */
-    FONT_UPLOAD("font:upload", "上传字体"),
+    FONT_UPLOAD("font：upload", "上传字体"),
 
     /**
      * 草稿保存
      */
-    DRAFT_SAVE("draft:save", "保存草稿");
+    DRAFT_SAVE("draft：save", "保存草稿");
 
     private final String code;
     private final String desc;
@@ -56,6 +56,6 @@ public enum LockActionEnum {
      * @return 锁的Key
      */
     public static String getLockKey(LockActionEnum action, Object id) {
-        return String.format("lock:%s:%s", action.getCode(), id);
+        return String.format("lock：%s：%s", action.getCode(), id);
     }
 }

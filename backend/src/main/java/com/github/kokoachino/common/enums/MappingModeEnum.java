@@ -1,5 +1,7 @@
 package com.github.kokoachino.common.enums;
 
+import com.github.kokoachino.common.exception.BizException;
+import com.github.kokoachino.common.result.ResultCode;
 import lombok.Getter;
 
 
@@ -24,7 +26,7 @@ public enum MappingModeEnum {
     }
 
     public static MappingModeEnum fromValue(String value) {
-        if (value == null) {
+        if (value == null || value.isEmpty()) {
             return ID;
         }
         for (MappingModeEnum mode : values()) {
@@ -32,6 +34,6 @@ public enum MappingModeEnum {
                 return mode;
             }
         }
-        return ID;
+        throw new BizException(ResultCode.EXCEL_INVALID_MAPPING_MODE);
     }
 }

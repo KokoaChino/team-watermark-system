@@ -52,7 +52,6 @@ public class FontController {
     @Operation(summary = "删除字体", description = "删除团队上传的字体（仅队长可操作）")
     public Result<Void> deleteFont(
             @Parameter(description = "字体ID") @PathVariable Integer fontId) {
-        Integer userId = UserContext.getUserId();
         Integer teamId = TeamContext.getTeamId();
         boolean isLeader = TeamContext.isLeader();
         fontService.deleteFont(fontId, teamId, isLeader);

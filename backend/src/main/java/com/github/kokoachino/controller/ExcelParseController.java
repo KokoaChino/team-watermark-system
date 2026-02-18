@@ -40,16 +40,16 @@ public class ExcelParseController {
             - 拓展名：输出格式转换
             
             映射模式：
-            - id：按图片ID映射，读取id列不为空的行
+            - id：按图片ID映射，读取id列不为空的行（默认）
             - order：按顺序映射，跳过空行
             """)
     public Result<ExcelParseResultVO> parseExcel(
             @Parameter(description = "Excel文件(.xlsx或.xls)") @RequestParam MultipartFile excelFile,
-            @Parameter(description = "映射模式：id-按图片ID映射，order-按顺序映射", example = "id") 
+            @Parameter(description = "映射模式：id-按图片ID映射，order-按顺序映射（默认：id）", example = "id") 
             @RequestParam(defaultValue = "id") String mappingMode,
-            @Parameter(description = "重复ID处理策略：first-保留第一个，last-保留最后一个，error-报错终止", example = "first") 
+            @Parameter(description = "重复ID处理策略：first-保留第一个，last-保留最后一个，error-报错终止（默认：first）", example = "first") 
             @RequestParam(required = false) String duplicateHandling,
-            @Parameter(description = "异常字符处理策略：underscore-用下划线替代，error_folder-统一放到ERROR文件夹，error-报错终止", example = "underscore") 
+            @Parameter(description = "异常字符处理策略：underscore-用下划线替代，error_folder-统一放到ERROR文件夹，error-报错终止（默认：underscore）", example = "underscore") 
             @RequestParam(required = false) String invalidCharHandling) {
         ExcelParseSettingsDTO settings = new ExcelParseSettingsDTO();
         settings.setDuplicateHandling(duplicateHandling);

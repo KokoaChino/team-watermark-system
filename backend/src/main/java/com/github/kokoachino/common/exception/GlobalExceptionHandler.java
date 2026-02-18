@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BizException.class)
     public Result<Object> handleBusinessException(BizException e) {
         log.error("业务异常：{}", e.getMessage());
-        return Result.failed(e.getResultCode());
+        return Result.failed(e.getResultCode(), e.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -1,5 +1,7 @@
 package com.github.kokoachino.common.enums;
 
+import com.github.kokoachino.common.exception.BizException;
+import com.github.kokoachino.common.result.ResultCode;
 import lombok.Getter;
 
 
@@ -25,7 +27,7 @@ public enum InvalidCharHandlingEnum {
     }
 
     public static InvalidCharHandlingEnum fromValue(String value) {
-        if (value == null) {
+        if (value == null || value.isEmpty()) {
             return UNDERSCORE;
         }
         for (InvalidCharHandlingEnum strategy : values()) {
@@ -33,6 +35,6 @@ public enum InvalidCharHandlingEnum {
                 return strategy;
             }
         }
-        return UNDERSCORE;
+        throw new BizException(ResultCode.EXCEL_INVALID_CHAR_HANDLING);
     }
 }
