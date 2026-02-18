@@ -118,7 +118,10 @@ public enum ResultCode {
     EXCEL_INVALID_CHAR_IN_PATH(4105, "文件路径包含非法字符"),
     EXCEL_INVALID_EXTENSION(4106, "扩展名包含非法字符"),
     EXCEL_READ_FAILED(4107, "Excel文件读取失败"),
-    IMAGE_NOT_FOUND_IN_EXCEL(4108, "Excel中未找到对应的图片配置"),
+    EXCEL_INVALID_MAPPING_MODE(4108, "无效的映射模式"),
+    EXCEL_INVALID_DUPLICATE_HANDLING(4109, "无效的重复ID处理策略"),
+    EXCEL_INVALID_CHAR_HANDLING(4110, "无效的异常字符处理策略"),
+    EXCEL_DUPLICATE_HEADER(4111, "表头重复"),
 
     // 4200-4299：任务执行（预留）
 

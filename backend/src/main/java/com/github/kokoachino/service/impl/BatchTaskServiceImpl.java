@@ -48,7 +48,7 @@ public class BatchTaskServiceImpl implements BatchTaskService {
     private final RedissonClient redissonClient;
     private final OperationLogService operationLogService;
 
-    private static final String TASK_LOCK_PREFIX = "batch:task:user:";
+    private static final String TASK_LOCK_PREFIX = "batch：task：user：";
 
     @Override
     @Transactional(rollbackFor = Exception.class)

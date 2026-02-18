@@ -33,7 +33,7 @@ public class PointServiceImpl implements PointService {
     private final RedissonClient redissonClient;
     private final OperationLogService operationLogService;
 
-    private static final String POINT_LOCK_PREFIX = "point:lock:";
+    private static final String POINT_LOCK_PREFIX = "point：lock：";
 
     @Override
     @Transactional(rollbackFor = Exception.class)

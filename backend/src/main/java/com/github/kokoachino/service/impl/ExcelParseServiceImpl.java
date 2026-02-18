@@ -36,11 +36,14 @@ public class ExcelParseServiceImpl implements ExcelParseService {
     private static final Pattern INVALID_CHAR_PATTERN = Pattern.compile("[*^\\\\/:|\"<>?]");
     private static final Pattern INVALID_EXTENSION_PATTERN = Pattern.compile("[^a-zA-Z0-9]");
 
+    private String currentErrorFolderId;
+
     @Override
     public ExcelParseResultVO parseExcel(MultipartFile excelFile, String mappingMode, ExcelParseSettingsDTO settings) {
         if (settings == null) {
             settings = new ExcelParseSettingsDTO();
         }
+        currentErrorFolderId = null;
         // 1. 读取Excel原始数据
         List<List<String>> allRows = readExcelData(excelFile);
         if (allRows.isEmpty()) {
@@ -85,7 +88,7 @@ public class ExcelParseServiceImpl implements ExcelParseService {
                 public void doAfterAllAnalysed(AnalysisContext context) {
                     log.info("Excel读取完成，共{}行", allRows.size());
                 }
-            }).sheet(0).doRead();
+            }).sheet(0).headRowNumber(0).doRead();
         } catch (IOException e) {
             log.error("Excel文件读取失败", e);
             throw new BizException(ResultCode.EXCEL_READ_FAILED);
@@ -98,9 +101,9 @@ public class ExcelParseServiceImpl implements ExcelParseService {
      */
     private HeaderInfo parseHeader(List<String> headerRow) {
         HeaderInfo info = new HeaderInfo();
+        Map<HeaderEnum, Integer> headerCount = new HashMap<>();
         int colCount = headerRow.size();
         int i = 0;
-        // 遍历表头，识别各列
         while (i < colCount) {
             String header = headerRow.get(i).toLowerCase().trim();
             if (header.isEmpty()) {
@@ -112,7 +115,11 @@ public class ExcelParseServiceImpl implements ExcelParseService {
                 i++;
                 continue;
             }
-            // 根据表头类型处理
+            headerCount.merge(headerEnum, 1, Integer::sum);
+            if (headerCount.get(headerEnum) > 1) {
+                throw new BizException(ResultCode.EXCEL_DUPLICATE_HEADER, 
+                    String.format("表头 '%s' 重复出现（第%d列）", headerEnum.getValue(), i + 1));
+            }
             switch (headerEnum) {
                 case ID:
                     info.setIdColumnIndex(i);
@@ -202,21 +209,16 @@ public class ExcelParseServiceImpl implements ExcelParseService {
             // 5. 提取各区域数据
             List<String> textWatermarks = extractRangeValues(row, headerInfo.getTextWatermarkStart(), headerInfo.getTextWatermarkEnd());
             List<String> imageWatermarks = extractRangeValues(row, headerInfo.getImageWatermarkStart(), headerInfo.getImageWatermarkEnd());
-            List<String> filePaths = extractRangeValues(row, headerInfo.getFilePathStart(), headerInfo.getFilePathEnd());
-            String rename = extractSingleValue(row, headerInfo.getRenameColumnIndex());
-            String extension = extractSingleValue(row, headerInfo.getExtensionColumnIndex());
-            // 6. 处理异常字符
-            rename = processInvalidChars(rename, invalidCharHandling, ResultCode.EXCEL_INVALID_CHAR_IN_RENAME, rowNumber);
-            extension = processExtension(extension, invalidCharHandling, rowNumber);
-            filePaths = processFilePaths(filePaths, invalidCharHandling, rowNumber);
+            // 6. 统一处理文件路径、重命名、拓展名的异常字符
+            ProcessResult processResult = processFilePathRenameExtension(row, headerInfo, invalidCharHandling, rowNumber);
             // 7. 构建配置对象
             ExcelParseResultVO.ImageConfigVO config = ExcelParseResultVO.ImageConfigVO.builder()
                     .imageId(imageId)
                     .textWatermarks(textWatermarks)
                     .imageWatermarks(imageWatermarks)
-                    .filePaths(filePaths)
-                    .rename(rename)
-                    .extension(extension)
+                    .filePaths(processResult.filePaths)
+                    .rename(processResult.rename)
+                    .extension(processResult.extension)
                     .build();
             configs.add(config);
             rowNumber++;
@@ -285,8 +287,7 @@ public class ExcelParseServiceImpl implements ExcelParseService {
                                  DuplicateHandlingEnum handling, List<ExcelParseResultVO.ImageConfigVO> configs) {
         switch (handling) {
             case ERROR:
-                log.error("第{}行存在重复的图片ID: {}", rowNumber, imageId);
-                throw new BizException(ResultCode.EXCEL_DUPLICATE_ID);
+                throw new BizException(ResultCode.EXCEL_DUPLICATE_ID, String.format("第%s行存在重复的图片ID：%s", rowNumber, imageId));
             case LAST:
                 int existingIndex = idToConfigIndex.get(imageId);
                 configs.set(existingIndex, null);
@@ -307,7 +308,9 @@ public class ExcelParseServiceImpl implements ExcelParseService {
         if (start < 0) return values;
         for (int i = start; i <= end && i < row.size(); i++) {
             String value = row.get(i);
-            values.add(value != null && !value.isEmpty() ? value : "");
+            if (value != null && !value.isEmpty()) {
+                values.add(value);
+            }
         }
         return values;
     }
@@ -324,72 +327,122 @@ public class ExcelParseServiceImpl implements ExcelParseService {
     }
 
     /**
-     * 处理异常字符
+     * 统一处理文件路径、重命名、拓展名的异常字符
      */
-    private String processInvalidChars(String value, InvalidCharHandlingEnum handling,
-                                       ResultCode errorCode, int rowNumber) {
-        if (value == null || value.isEmpty()) {
-            return value;
+    private ProcessResult processFilePathRenameExtension(List<String> row, HeaderInfo headerInfo,
+                                                         InvalidCharHandlingEnum handling, int rowNumber) {
+        List<String> filePaths = extractRangeValues(row, headerInfo.getFilePathStart(), headerInfo.getFilePathEnd());
+        String rename = extractSingleValue(row, headerInfo.getRenameColumnIndex());
+        String extension = extractSingleValue(row, headerInfo.getExtensionColumnIndex());
+        ProcessResult result = new ProcessResult();
+        result.filePaths = new ArrayList<>(filePaths);
+        result.rename = rename;
+        result.extension = extension;
+        boolean anyInvalid = false;
+        boolean pathInvalid = false;
+        boolean renameInvalid = false;
+        boolean extensionInvalid = false;
+        int invalidPathCol = -1;
+        String invalidPathValue = null;
+        for (int i = 0; i < result.filePaths.size(); i++) {
+            String path = result.filePaths.get(i);
+            if (path != null && !path.isEmpty() && INVALID_CHAR_PATTERN.matcher(path).find()) {
+                pathInvalid = anyInvalid = true;
+                invalidPathCol = headerInfo.getFilePathStart() + i;
+                invalidPathValue = path;
+                break;
+            }
         }
-        if (!INVALID_CHAR_PATTERN.matcher(value).find()) {
-            return value;
+        if (!pathInvalid && rename != null && !rename.isEmpty() && INVALID_CHAR_PATTERN.matcher(rename).find()) {
+            renameInvalid = anyInvalid = true;
+        }
+        if (!pathInvalid && !renameInvalid && extension != null && !extension.isEmpty()) {
+            String cleaned = extension.trim().toLowerCase();
+            if (cleaned.startsWith(".")) {
+                cleaned = cleaned.substring(1);
+            }
+            if (cleaned.isEmpty() || cleaned.contains(".") || INVALID_EXTENSION_PATTERN.matcher(cleaned).find()) {
+                extensionInvalid = true;
+                anyInvalid = true;
+            } else {
+                result.extension = cleaned;
+            }
         }
         switch (handling) {
-            case ERROR:
-                log.error("第{}行包含非法字符: {}", rowNumber, value);
-                throw new BizException(errorCode);
-            case ERROR_FOLDER:
-                return "ERROR/" + generateErrorId();
-            case UNDERSCORE:
-            default:
-                return INVALID_CHAR_PATTERN.matcher(value).replaceAll("_");
-        }
-    }
-
-    /**
-     * 处理扩展名
-     */
-    private String processExtension(String extension, InvalidCharHandlingEnum handling, int rowNumber) {
-        if (extension == null || extension.isEmpty()) {
-            return extension;
-        }
-        String cleaned = extension.toLowerCase().replaceAll("^\\.+", "");
-        if (INVALID_EXTENSION_PATTERN.matcher(cleaned).find()) {
-            switch (handling) {
-                case ERROR:
-                    log.error("第{}行的扩展名包含非法字符: {}", rowNumber, extension);
-                    throw new BizException(ResultCode.EXCEL_INVALID_EXTENSION);
-                case ERROR_FOLDER:
-                    return null;
-                case UNDERSCORE:
-                default:
-                    return INVALID_EXTENSION_PATTERN.matcher(cleaned).replaceAll("");
+            case ERROR -> {
+                if (pathInvalid) {
+                    throw new BizException(ResultCode.EXCEL_INVALID_CHAR_IN_PATH, 
+                        String.format("第%d行第%d列 '%s' 包含非法字符", rowNumber, invalidPathCol + 1, invalidPathValue));
+                }
+                if (renameInvalid) {
+                    throw new BizException(ResultCode.EXCEL_INVALID_CHAR_IN_RENAME, 
+                        String.format("第%d行第%d列 '%s' 包含非法字符", rowNumber, headerInfo.getRenameColumnIndex() + 1, rename));
+                }
+                if (extensionInvalid) {
+                    throw new BizException(ResultCode.EXCEL_INVALID_EXTENSION, 
+                        String.format("第%d行第%d列 '%s' 包含非法字符", rowNumber, headerInfo.getExtensionColumnIndex() + 1, extension));
+                }
+            }
+            case ERROR_FOLDER -> {
+                if (anyInvalid) {
+                    result.filePaths = List.of(generateErrorId());
+                    result.rename = renameInvalid ? null : rename;
+                    result.extension = extensionInvalid ? null : extension;
+                }
+            }
+            case UNDERSCORE -> {
+                List<String> processedPaths = new ArrayList<>();
+                for (String path : result.filePaths) {
+                    if (path != null && !path.isEmpty()) {
+                        processedPaths.add(INVALID_CHAR_PATTERN.matcher(path).replaceAll("_"));
+                    } else {
+                        processedPaths.add(path);
+                    }
+                }
+                result.filePaths = processedPaths;
+                if (renameInvalid && result.rename != null) {
+                    result.rename = INVALID_CHAR_PATTERN.matcher(result.rename).replaceAll("_");
+                }
+                if (extensionInvalid && result.extension != null) {
+                    String cleaned = result.extension.trim().toLowerCase();
+                    if (cleaned.startsWith(".")) {
+                        cleaned = cleaned.substring(1);
+                    }
+                    if (cleaned.contains(".")) {
+                        cleaned = cleaned.replace(".", "");
+                    }
+                    result.extension = INVALID_EXTENSION_PATTERN.matcher(cleaned).replaceAll("");
+                }
             }
         }
-        return cleaned;
-    }
-
-    /**
-     * 处理文件路径列表
-     */
-    private List<String> processFilePaths(List<String> filePaths, InvalidCharHandlingEnum handling, int rowNumber) {
-        List<String> processed = new ArrayList<>();
-        for (String path : filePaths) {
-            if (path == null || path.isEmpty()) {
-                processed.add("");
-                continue;
+        if (result.extension != null) {
+            String cleaned = result.extension.trim().toLowerCase();
+            if (cleaned.startsWith(".")) {
+                cleaned = cleaned.substring(1);
             }
-            String processedPath = processInvalidChars(path, handling, ResultCode.EXCEL_INVALID_CHAR_IN_PATH, rowNumber);
-            processed.add(processedPath);
+            result.extension = cleaned;
         }
-        return processed;
+        return result;
     }
 
     /**
-     * 生成错误ID
+     * 生成错误ID（单次解析中唯一）
      */
     private String generateErrorId() {
-        return "ERROR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        if (currentErrorFolderId == null) {
+            currentErrorFolderId = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        }
+        return "ERROR-" + currentErrorFolderId;
+    }
+
+    /**
+     * 处理结果
+     */
+    @Data
+    private static class ProcessResult {
+        private List<String> filePaths;
+        private String rename;
+        private String extension;
     }
 
     /**
