@@ -158,7 +158,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             }
         }
         redisUtils.set(redisKey, code, systemProperties.getEmailCode().getExpiration(), TimeUnit.MINUTES);
-        String subject = "【协作式批量图片水印处理系统】验证码（请勿泄露）";
+        String subject = "【批量图片水印协作平台】验证码（请勿泄露）";
         String htmlContent = """
             <html>
             <body style='font-family: Microsoft YaHei, sans-serif;'>
