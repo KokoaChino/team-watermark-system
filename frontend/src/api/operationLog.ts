@@ -11,5 +11,5 @@ export interface OperationLogQueryDTO {
 }
 
 export function queryOperationLogs(data: OperationLogQueryDTO) {
-  return request.post<ResultDTO<PageVO<OperationLogVO>>>('/api/operation-log/query', data)
+  return request.post<never, ResultDTO<PageVO<OperationLogVO>>>('/api/operation-log/query', data)
 }

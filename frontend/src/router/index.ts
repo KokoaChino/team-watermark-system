@@ -6,9 +6,58 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'home',
-      component: () => import('@/views/HomeView.vue'),
-      meta: { requiresAuth: true }
+      component: () => import('@/views/layout/MainLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'home',
+          component: () => import('@/views/home/DashboardView.vue'),
+          meta: { title: '首页' }
+        },
+        {
+          path: 'team',
+          name: 'team',
+          component: () => import('@/views/team/TeamOverviewView.vue'),
+          meta: { title: '团队概览' }
+        },
+        {
+          path: 'team/invite',
+          name: 'teamInvite',
+          component: () => import('@/views/team/TeamInviteView.vue'),
+          meta: { title: '邀请码管理', parent: 'team' }
+        },
+        {
+          path: 'template',
+          name: 'template',
+          component: () => import('@/views/template/TemplateListView.vue'),
+          meta: { title: '水印模板' }
+        },
+        {
+          path: 'template/editor',
+          name: 'templateEditor',
+          component: () => import('@/views/template/TemplateEditorView.vue'),
+          meta: { title: '模板编辑' }
+        },
+        {
+          path: 'task',
+          name: 'task',
+          component: () => import('@/views/task/TaskListView.vue'),
+          meta: { title: '批量任务' }
+        },
+        {
+          path: 'task/create',
+          name: 'taskCreate',
+          component: () => import('@/views/task/TaskCreateView.vue'),
+          meta: { title: '创建任务', parent: 'task' }
+        },
+        {
+          path: 'logs',
+          name: 'logs',
+          component: () => import('@/views/logs/OperationLogView.vue'),
+          meta: { title: '操作日志' }
+        }
+      ]
     },
     {
       path: '/auth',

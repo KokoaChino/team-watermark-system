@@ -25,6 +25,9 @@ public class TeamMember {
     private String role;
 
     @TableField(fill = FieldFill.INSERT)
+    private LocalDateTime joinedAt;
+
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
     @TableField(fill = FieldFill.INSERT_UPDATE)

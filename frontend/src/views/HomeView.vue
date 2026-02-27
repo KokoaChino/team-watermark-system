@@ -45,11 +45,10 @@ async function handleUnregister() {
     
     await ElMessageBox.confirm(
       '请再次确认：您确定要注销账户吗？',
-      '二次确认',
       {
         confirmButtonText: '确定注销',
         cancelButtonText: '取消',
-        type: 'danger'
+        type: 'error'
       }
     )
     

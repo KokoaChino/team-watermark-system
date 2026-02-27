@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { UserVO, TeamMemberVO } from '@/types'
+import { logout as logoutApi } from '@/api/auth'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>('')
@@ -25,7 +26,12 @@ export const useUserStore = defineStore('user', () => {
     teamInfo.value = info
   }
 
-  function logout() {
+  async function logout() {
+    try {
+      await logoutApi()
+    } catch (error) {
+      console.error('登出请求失败:', error)
+    }
     token.value = ''
     userInfo.value = null
     teamInfo.value = null

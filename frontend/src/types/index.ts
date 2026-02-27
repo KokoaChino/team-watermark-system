@@ -17,6 +17,8 @@ export interface UserVO {
   username: string
   email: string
   token?: string
+  role?: 'leader' | 'member'
+  joinedAt?: string
 }
 
 export interface TeamMemberVO {

@@ -230,7 +230,7 @@ async function handleLogin() {
 
     userStore.setUserInfo(res.data)
     
-    if (res.data.token) {
+    if (res.data && res.data.token) {
       userStore.setToken(res.data.token)
     }
 

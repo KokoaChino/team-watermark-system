@@ -373,12 +373,17 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                 new LambdaQueryWrapper<TeamMember>()
                         .eq(TeamMember::getTeamId, teamId)
         );
+        Map<Integer, TeamMember> memberMap = members.stream()
+                .collect(java.util.stream.Collectors.toMap(TeamMember::getUserId, m -> m));
         List<UserVO> memberVOList = new ArrayList<>();
         if (leader != null) {
+            TeamMember leaderMember = memberMap.get(leader.getId());
             memberVOList.add(UserVO.builder()
                     .id(leader.getId())
                     .username(leader.getUsername())
                     .email(leader.getEmail())
+                    .role("leader")
+                    .joinedAt(leaderMember != null && leaderMember.getJoinedAt() != null ? leaderMember.getJoinedAt().toString() : null)
                     .build());
         }
         List<UserVO> otherMembers = members.stream()
@@ -390,6 +395,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                                 .id(user.getId())
                                 .username(user.getUsername())
                                 .email(user.getEmail())
+                                .role(m.getRole())
+                                .joinedAt(m.getJoinedAt() != null ? m.getJoinedAt().toString() : null)
                                 .build();
                     }
                     return null;

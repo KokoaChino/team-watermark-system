@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import type { ResultDTO, UserVO, UpdateProfileDTO } from '@/types'
+import type { ResultDTO, UserVO } from '@/types'
 
 export interface UpdateProfileDTO {
   username?: string

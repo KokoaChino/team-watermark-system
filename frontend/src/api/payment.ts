@@ -6,9 +6,9 @@ export interface CreatePaymentOrderDTO {
 }
 
 export function createPaymentOrder(data: CreatePaymentOrderDTO) {
-  return request.post<ResultDTO<PaymentOrderVO>>('/api/payment/create', data)
+  return request.post<never, ResultDTO<PaymentOrderVO>>('/api/payment/create', data)
 }
 
 export function queryPaymentOrder(orderNo: string) {
-  return request.get<any, ResultDTO<PaymentOrderVO>>(`/api/payment/query/${orderNo}`)
+  return request.get<never, ResultDTO<PaymentOrderVO>>(`/api/payment/query/${orderNo}`)
 }
