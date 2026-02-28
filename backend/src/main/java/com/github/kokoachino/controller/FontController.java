@@ -3,7 +3,6 @@ package com.github.kokoachino.controller;
 import com.github.kokoachino.common.result.Result;
 import com.github.kokoachino.common.util.TeamContext;
 import com.github.kokoachino.common.util.UserContext;
-import com.github.kokoachino.model.dto.FontQueryDTO;
 import com.github.kokoachino.model.vo.FontVO;
 import com.github.kokoachino.service.FontService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,10 +29,11 @@ public class FontController {
     private final FontService fontService;
 
     @GetMapping("/list")
-    @Operation(summary = "获取可用字体列表", description = "获取系统字体和团队上传的字体，支持条件筛选")
-    public Result<List<FontVO>> getAvailableFonts(FontQueryDTO dto) {
+    @Operation(summary = "获取可用字体列表", description = "获取系统字体和团队上传的字体，支持按名称模糊查询")
+    public Result<List<FontVO>> getAvailableFonts(
+            @Parameter(description = "字体名称（模糊匹配）") @RequestParam(required = false) String name) {
         Integer teamId = TeamContext.getTeamId();
-        List<FontVO> list = fontService.getAvailableFonts(teamId, dto);
+        List<FontVO> list = fontService.getAvailableFonts(teamId, name);
         return Result.success(list);
     }
 

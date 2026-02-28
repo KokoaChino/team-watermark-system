@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.mapper.FontMapper;
-import com.github.kokoachino.model.dto.FontQueryDTO;
 import com.github.kokoachino.model.entity.Font;
 import com.github.kokoachino.model.vo.FontVO;
 import com.github.kokoachino.service.FontService;
@@ -33,21 +32,11 @@ public class FontServiceImpl implements FontService {
     private final MinioService minioService;
 
     @Override
-    public List<FontVO> getAvailableFonts(Integer teamId, FontQueryDTO dto) {
+    public List<FontVO> getAvailableFonts(Integer teamId, String name) {
         LambdaQueryWrapper<Font> wrapper = new LambdaQueryWrapper<>();
-        if (dto != null) {
-            if (Boolean.TRUE.equals(dto.getSystemFontOnly())) {
-                wrapper.isNull(Font::getTeamId);
-            } else if (Boolean.TRUE.equals(dto.getTeamFontOnly())) {
-                wrapper.eq(Font::getTeamId, teamId);
-            } else {
-                wrapper.and(w -> w.isNull(Font::getTeamId).or().eq(Font::getTeamId, teamId));
-            }
-            if (dto.getName() != null && !dto.getName().isEmpty()) {
-                wrapper.like(Font::getName, dto.getName());
-            }
-        } else {
-            wrapper.and(w -> w.isNull(Font::getTeamId).or().eq(Font::getTeamId, teamId));
+        wrapper.and(w -> w.isNull(Font::getTeamId).or().eq(Font::getTeamId, teamId));
+        if (name != null && !name.isEmpty()) {
+            wrapper.like(Font::getName, name);
         }
         wrapper.orderByAsc(Font::getTeamId).orderByAsc(Font::getName);
         List<Font> fonts = fontMapper.selectList(wrapper);
