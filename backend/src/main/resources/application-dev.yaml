@@ -16,6 +16,10 @@ spring:
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
+  servlet:
+    multipart:
+      max-file-size: 1GB
+      max-request-size: 1GB
   data: # Redis
     redis:
       host: localhost

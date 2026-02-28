@@ -34,6 +34,12 @@ const router = createRouter({
           meta: { title: '水印模板' }
         },
         {
+          path: 'font',
+          name: 'font',
+          component: () => import('@/views/font/FontManageView.vue'),
+          meta: { title: '字体管理' }
+        },
+        {
           path: 'template/editor',
           name: 'templateEditor',
           component: () => import('@/views/template/TemplateEditorView.vue'),
