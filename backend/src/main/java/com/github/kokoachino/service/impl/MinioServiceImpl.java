@@ -99,6 +99,42 @@ public class MinioServiceImpl implements MinioService {
         }
     }
 
+    @Override
+    public String uploadFileWithAutoKey(MultipartFile file, String prefix) {
+        try {
+            String objectKey = generateObjectKey(prefix, file.getOriginalFilename());
+            ensureBucketExists();
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(minioConfig.getBucketName())
+                            .object(objectKey)
+                            .stream(file.getInputStream(), file.getSize(), -1)
+                            .contentType(file.getContentType())
+                            .build()
+            );
+            return getFileUrl(objectKey);
+        } catch (Exception e) {
+            log.error("上传文件到 MinIO 失败", e);
+            throw new RuntimeException("上传文件失败", e);
+        }
+    }
+
+    /**
+     * 生成对象Key
+     *
+     * @param prefix   前缀
+     * @param fileName 原始文件名
+     * @return ObjectKey
+     */
+    private String generateObjectKey(String prefix, String fileName) {
+        String extension = getFileExtension(fileName);
+        String cleanPrefix = prefix;
+        if (cleanPrefix != null && !cleanPrefix.isEmpty() && !cleanPrefix.endsWith("/")) {
+            cleanPrefix = cleanPrefix + "/";
+        }
+        return String.format("%s%s.%s", cleanPrefix != null ? cleanPrefix : "", UUID.randomUUID().toString().replace("-", ""), extension);
+    }
+
     /**
      * 生成字体文件的ObjectKey
      *
