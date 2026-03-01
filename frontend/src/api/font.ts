@@ -1,7 +1,13 @@
 import request from '@/utils/request'
 import type { ResultDTO, FontVO } from '@/types'
 
-export function getFontList(params?: { name?: string }) {
+export interface FontListParams {
+  name?: string
+  systemFontOnly?: boolean
+  teamFontOnly?: boolean
+}
+
+export function getFontList(params?: FontListParams) {
   return request.get<never, ResultDTO<FontVO[]>>('/api/font/list', { params })
 }
 

@@ -112,7 +112,7 @@
             </div>
             <template #tip>
               <div class="el-upload__tip">
-                支持 .ttf 或 .otf 格式，文件大小不超过 10MB
+                支持 .ttf 或 .otf 格式，文件大小不超过 100MB
               </div>
             </template>
           </el-upload>
@@ -301,30 +301,58 @@ function handleSearch() {
 const handleBeforeUpload: UploadProps['beforeUpload'] = (file) => {
   const isValidType = file.type === 'font/ttf' || file.type === 'font/otf' || 
                      file.name.toLowerCase().endsWith('.ttf') || file.name.toLowerCase().endsWith('.otf')
-  const isLt10M = file.size / 1024 / 1024 < 10
+  const isLt100M = file.size / 1024 / 1024 < 100
   
   if (!isValidType) {
     ElMessage.error('只能上传 .ttf 或 .otf 格式的字体文件')
     return false
   }
-  if (!isLt10M) {
-    ElMessage.error('字体文件大小不能超过 10MB')
+  if (!isLt100M) {
+    ElMessage.error('字体文件大小不能超过 100MB')
     return false
   }
   return true
 }
 
-function handleFileChange(file: any) {
+async function validateFontFile(file: File): Promise<boolean> {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      try {
+        const arrayBuffer = e.target?.result as ArrayBuffer
+        const fontFace = new FontFace('test-font', arrayBuffer)
+        await fontFace.load()
+        resolve(true)
+      } catch (error) {
+        console.error('字体文件校验失败:', error)
+        resolve(false)
+      }
+    }
+    reader.onerror = () => {
+      resolve(false)
+    }
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+async function handleFileChange(file: any) {
   const isValidType = file.name.toLowerCase().endsWith('.ttf') || file.name.toLowerCase().endsWith('.otf')
-  const isLt10M = file.size / 1024 / 1024 < 10
+  const isLt100M = file.size / 1024 / 1024 < 100
   
   if (!isValidType) {
     ElMessage.error('只能上传 .ttf 或 .otf 格式的字体文件')
     uploadRef.value?.clearFiles()
     return
   }
-  if (!isLt10M) {
-    ElMessage.error('字体文件大小不能超过 10MB')
+  if (!isLt100M) {
+    ElMessage.error('字体文件大小不能超过 100MB')
+    uploadRef.value?.clearFiles()
+    return
+  }
+  
+  const isValidFont = await validateFontFile(file.raw)
+  if (!isValidFont) {
+    ElMessage.error('字体文件无效或已损坏，请上传有效的字体文件')
     uploadRef.value?.clearFiles()
     return
   }

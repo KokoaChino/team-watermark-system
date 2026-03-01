@@ -50,7 +50,7 @@ export interface WatermarkTemplateVO {
 
 export interface WatermarkConfigDTO {
   baseConfig: BaseConfigDTO
-  watermarks: unknown[]
+  watermarks: WatermarkItemDTO[]
   previewImageKey?: string
 }
 
@@ -58,6 +58,53 @@ export interface BaseConfigDTO {
   width: number
   height: number
   backgroundColor?: string
+}
+
+export type WatermarkType = 'text' | 'image'
+
+export interface WatermarkItemDTO {
+  id: string
+  type: WatermarkType
+  name: string
+  x: number
+  y: number
+  width?: number
+  height?: number
+  rotation?: number
+  opacity?: number
+  textConfig?: TextWatermarkConfig
+  imageConfig?: ImageWatermarkConfig
+}
+
+export interface TextWatermarkConfig {
+  content: string
+  fontSize: number
+  fontFamily: string
+  fontUrl?: string
+  color: string
+  align: 'left' | 'center' | 'right'
+  fontWeight: number
+  italicAngle: number
+  rotation: number
+  opacity: number
+  strokeEnabled: boolean
+  strokeColor?: string
+  strokeWidth?: number
+  shadowEnabled: boolean
+  shadowColor?: string
+  shadowBlur?: number
+  shadowOffsetX?: number
+  shadowOffsetY?: number
+  gradientEnabled: boolean
+  gradientColors?: string[]
+  gradientAngle?: number
+}
+
+export interface ImageWatermarkConfig {
+  imageUrl: string
+  imageKey?: string
+  scale: number
+  fitMode: 'contain' | 'cover' | 'stretch'
 }
 
 export interface DraftVO {

@@ -31,6 +31,7 @@
             <span>水印模板</span>
           </template>
           <el-menu-item index="/template">模板列表</el-menu-item>
+          <el-menu-item index="/template/draft">草稿区</el-menu-item>
           <el-menu-item index="/font">字体管理</el-menu-item>
         </el-sub-menu>
         <el-sub-menu index="/task">

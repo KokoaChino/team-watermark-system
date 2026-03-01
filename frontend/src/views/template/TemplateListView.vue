@@ -3,29 +3,41 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>水印模板</span>
-          <el-button type="primary" @click="handleCreate">
-            新建模板
-          </el-button>
+          <span>模板列表</span>
+          <el-button type="primary" @click="handleCreateNew">新建模板</el-button>
         </div>
       </template>
-      <el-empty v-if="templates.length === 0" description="暂无模板，点击新建模板开始创建" />
-      <el-table v-else :data="templates" style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="模板名称" />
-        <el-table-column prop="createdByUsername" label="创建者" />
-        <el-table-column prop="createdAt" label="创建时间">
+      
+      <el-table :data="templates" v-loading="loading" style="width: 100%">
+        <el-table-column prop="name" label="模板名称" min-width="150" />
+        <el-table-column label="尺寸" width="120">
+          <template #default="{ row }">
+            {{ row.config?.baseConfig?.width }} × {{ row.config?.baseConfig?.height }}
+          </template>
+        </el-table-column>
+        <el-table-column label="水印数" width="80">
+          <template #default="{ row }">
+            {{ row.config?.watermarks?.length || 0 }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="createdByUsername" label="创建人" width="120" />
+        <el-table-column prop="createdAt" label="创建时间" width="170">
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200">
+        <el-table-column prop="updatedAt" label="更新时间" width="170">
+          <template #default="{ row }">
+            {{ formatDate(row.updatedAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180">
           <template #default="{ row }">
             <el-button type="primary" size="small" @click="handleEdit(row)">
               编辑
             </el-button>
             <el-button
-              v-if="row.createdById === userStore.userInfo?.id || isLeader"
+              v-if="canDelete(row)"
               type="danger"
               size="small"
               @click="handleDelete(row)"
@@ -35,6 +47,8 @@
           </template>
         </el-table-column>
       </el-table>
+      
+      <el-empty v-if="!loading && templates.length === 0" description="暂无模板" />
     </el-card>
   </div>
 </template>
@@ -43,16 +57,17 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useUserStore } from '@/stores/user'
+import { getTemplateList, deleteTemplate, createDraftFromTemplate, createNewDraft } from '@/api/template'
 import { getTeamInfo } from '@/api/team'
-import { getTemplateList, deleteTemplate } from '@/api/template'
-import type { WatermarkTemplateVO, TeamMemberVO } from '@/types'
+import { useUserStore } from '@/stores/user'
+import type { WatermarkTemplateVO } from '@/types'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const templates = ref<WatermarkTemplateVO[]>([])
-const teamInfo = ref<TeamMemberVO | null>(null)
+const loading = ref(false)
+const teamInfo = ref<{ role?: string } | null>(null)
 
 const isLeader = computed(() => teamInfo.value?.role === 'leader')
 
@@ -61,7 +76,12 @@ function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleString('zh-CN')
 }
 
+function canDelete(row: WatermarkTemplateVO) {
+  return isLeader.value || row.createdById === userStore.userInfo?.id
+}
+
 async function fetchTemplates() {
+  loading.value = true
   try {
     const res = await getTemplateList()
     if (res.code === 200) {
@@ -69,6 +89,8 @@ async function fetchTemplates() {
     }
   } catch (error) {
     console.error('获取模板列表失败:', error)
+  } finally {
+    loading.value = false
   }
 }
 
@@ -83,26 +105,36 @@ async function fetchTeamInfo() {
   }
 }
 
-function handleCreate() {
-  router.push('/template/editor')
-}
-
-function handleEdit(template: WatermarkTemplateVO) {
-  router.push(`/template/editor?id=${template.id}`)
-}
-
-async function handleDelete(template: WatermarkTemplateVO) {
+async function handleCreateNew() {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除模板 "${template.name}" 吗？`,
-      '提示',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    await deleteTemplate(template.id)
+    const res = await createNewDraft()
+    if (res.code === 200) {
+      router.push('/template/draft')
+    }
+  } catch (error) {
+    console.error('创建草稿失败:', error)
+  }
+}
+
+async function handleEdit(row: WatermarkTemplateVO) {
+  try {
+    const res = await createDraftFromTemplate(row.id)
+    if (res.code === 200) {
+      router.push('/template/draft')
+    }
+  } catch (error) {
+    console.error('创建草稿失败:', error)
+  }
+}
+
+async function handleDelete(row: WatermarkTemplateVO) {
+  try {
+    await ElMessageBox.confirm(`确定要删除模板 "${row.name}" 吗？`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await deleteTemplate(row.id)
     ElMessage.success('模板已删除')
     fetchTemplates()
   } catch (error) {

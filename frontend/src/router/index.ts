@@ -28,22 +28,22 @@ const router = createRouter({
           meta: { title: '邀请码管理', parent: 'team' }
         },
         {
-          path: 'template',
-          name: 'template',
-          component: () => import('@/views/template/TemplateListView.vue'),
-          meta: { title: '水印模板' }
-        },
-        {
           path: 'font',
           name: 'font',
           component: () => import('@/views/font/FontManageView.vue'),
           meta: { title: '字体管理' }
         },
         {
-          path: 'template/editor',
-          name: 'templateEditor',
-          component: () => import('@/views/template/TemplateEditorView.vue'),
-          meta: { title: '模板编辑' }
+          path: 'template',
+          name: 'template',
+          component: () => import('@/views/template/TemplateListView.vue'),
+          meta: { title: '模板列表' }
+        },
+        {
+          path: 'template/draft',
+          name: 'templateDraft',
+          component: () => import('@/views/template/TemplateDraftView.vue'),
+          meta: { title: '草稿区' }
         },
         {
           path: 'task',
