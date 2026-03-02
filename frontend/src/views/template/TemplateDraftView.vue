@@ -241,6 +241,8 @@ const conflictMessage = ref('')
 const previewCanvas = ref<HTMLCanvasElement | null>(null)
 const loadedImages = ref<Map<string, HTMLImageElement>>(new Map())
 const loadedFonts = ref<Set<string>>(new Set())
+const isRendering = ref(false)
+const pendingRender = ref(false)
 
 interface WatermarkBounds {
   centerX: number
@@ -410,15 +412,15 @@ function handleNameChange() {
 }
 
 function handleBaseConfigChange() {
-  renderPreview()
+  // 不需要手动调用 renderPreview，因为 baseConfig 被监听会自动触发
 }
 
 function handleWatermarkChange() {
-  renderPreview()
+  // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
 }
 
 function handleWatermarkOrderChange() {
-  renderPreview()
+  // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
 }
 
 function handleAddWatermark(type: 'text' | 'image') {
@@ -435,7 +437,7 @@ function handleAddWatermark(type: 'text' | 'image') {
   }
   watermarks.value.push(newWatermark)
   selectedWatermarkId.value = newWatermark.id
-  renderPreview()
+  // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
 }
 
 function selectWatermark(id: string) {
@@ -448,13 +450,13 @@ function removeWatermark(index: number) {
   if (selectedWatermarkId.value === removed.id) {
     selectedWatermarkId.value = watermarks.value.length > 0 ? watermarks.value[0].id : null
   }
-  renderPreview()
+  // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
 }
 
 function handleTextConfigUpdate(config: TextWatermarkConfig) {
   if (selectedWatermark.value && selectedWatermark.value.textConfig) {
     selectedWatermark.value.textConfig = config
-    renderPreview()
+    // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
   }
 }
 
@@ -464,7 +466,7 @@ function handleImageConfigUpdate(config: ImageWatermarkConfig) {
     if (config.imageUrl) {
       preloadImage(config.imageUrl)
     }
-    renderPreview()
+    // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
   }
 }
 
@@ -768,31 +770,49 @@ function preloadImage(url: string): Promise<HTMLImageElement> {
 async function renderPreview() {
   if (!previewCanvas.value) return
   
-  const canvas = previewCanvas.value
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-  
-  const scale = canvasScale.value
-  
-  canvas.width = baseConfig.value.width * scale
-  canvas.height = baseConfig.value.height * scale
-  
-  ctx.fillStyle = baseConfig.value.backgroundColor || '#ffffff'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-  
-  watermarkBounds.value.clear()
-  
-  for (const watermark of watermarks.value) {
-    const bounds = await drawWatermark(ctx, watermark, scale)
-    if (bounds) {
-      watermarkBounds.value.set(watermark.id, bounds)
-    }
+  // 如果正在渲染，标记待渲染并返回
+  if (isRendering.value) {
+    pendingRender.value = true
+    return
   }
   
-  if (selectedWatermarkId.value) {
-    const selected = watermarks.value.find(w => w.id === selectedWatermarkId.value)
-    if (selected) {
-      drawSelectionBorder(ctx, selected, scale)
+  isRendering.value = true
+  pendingRender.value = false
+  
+  try {
+    const canvas = previewCanvas.value
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
+    const scale = canvasScale.value
+    
+    canvas.width = baseConfig.value.width * scale
+    canvas.height = baseConfig.value.height * scale
+    
+    ctx.fillStyle = baseConfig.value.backgroundColor || '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    
+    watermarkBounds.value.clear()
+    
+    for (const watermark of watermarks.value) {
+      const bounds = await drawWatermark(ctx, watermark, scale)
+      if (bounds) {
+        watermarkBounds.value.set(watermark.id, bounds)
+      }
+    }
+    
+    if (selectedWatermarkId.value) {
+      const selected = watermarks.value.find(w => w.id === selectedWatermarkId.value)
+      if (selected) {
+        drawSelectionBorder(ctx, selected, scale)
+      }
+    }
+  } finally {
+    isRendering.value = false
+    // 如果有待处理的渲染请求，再次调用
+    if (pendingRender.value) {
+      pendingRender.value = false
+      await renderPreview()
     }
   }
 }
@@ -867,6 +887,9 @@ async function drawTextWatermark(
   centerY: number,
   rotation: number
 ): Promise<WatermarkBounds> {
+  // 保存当前 Canvas 状态，确保后续修改不会影响其他绘制操作
+  ctx.save()
+  
   let fontFamily = config.fontFamily
   
   if (config.fontUrl) {
@@ -934,6 +957,9 @@ async function drawTextWatermark(
   const halfHeight = (ascent + descent) / 2 / scale
   const boundsOffsetX = offsetX / scale
   const boundsOffsetY = (descent - ascent) / 2 / scale
+  
+  // 恢复 Canvas 状态
+  ctx.restore()
   
   return {
     centerX,
