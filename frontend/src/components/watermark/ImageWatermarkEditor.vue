@@ -213,14 +213,14 @@ function handleFileSelect(e: Event) {
   if (!file) return
   
   const isImage = file.type.startsWith('image/')
-  const isLt5M = file.size / 1024 / 1024 < 5
+  const isLt10M = file.size / 1024 / 1024 < 10
   
   if (!isImage) {
     ElMessage.error('只能上传图片文件')
     return
   }
-  if (!isLt5M) {
-    ElMessage.error('图片大小不能超过 5MB')
+  if (!isLt10M) {
+    ElMessage.error('图片大小不能超过 10MB')
     return
   }
   

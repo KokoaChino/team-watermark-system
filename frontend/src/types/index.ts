@@ -62,21 +62,25 @@ export interface BaseConfigDTO {
 
 export type WatermarkType = 'text' | 'image'
 
+/**
+ * 水印项 DTO - 匹配后端结构
+ */
 export interface WatermarkItemDTO {
   id: string
   type: WatermarkType
   name: string
   x: number
   y: number
-  width?: number
-  height?: number
   rotation?: number
   opacity?: number
-  textConfig?: TextWatermarkConfig
-  imageConfig?: ImageWatermarkConfig
+  textConfig?: TextWatermarkConfigDTO
+  imageConfig?: ImageWatermarkConfigDTO
 }
 
-export interface TextWatermarkConfig {
+/**
+ * 文字水印配置 DTO - 匹配后端结构
+ */
+export interface TextWatermarkConfigDTO {
   content: string
   fontSize: number
   fontFamily: string
@@ -100,18 +104,33 @@ export interface TextWatermarkConfig {
   gradientAngle?: number
 }
 
+/**
+ * 图片水印配置 DTO - 匹配后端结构
+ */
 export type FitMode = 'none' | 'scaleToFill' | 'aspectFit' | 'aspectFill'
 export type AnchorPosition = 'none' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' | 'center'
 
-export interface ImageWatermarkConfig {
+export interface ImageWatermarkConfigDTO {
   imageUrl: string
   imageKey?: string
-  localFile?: File
   scale: number
   fitMode: FitMode
   anchor: AnchorPosition
   originalWidth?: number
   originalHeight?: number
+}
+
+/**
+ * 前端内部使用的文字水印配置（扩展 DTO 用于编辑状态）
+ */
+export interface TextWatermarkConfig extends TextWatermarkConfigDTO {
+}
+
+/**
+ * 前端内部使用的图片水印配置（扩展 DTO 用于编辑状态）
+ */
+export interface ImageWatermarkConfig extends ImageWatermarkConfigDTO {
+  localFile?: File
 }
 
 export interface DraftVO {

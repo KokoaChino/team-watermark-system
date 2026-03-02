@@ -23,7 +23,7 @@ public class WatermarkConfigDTO {
     private BaseConfigDTO baseConfig;
 
     @Schema(description = "水印列表（按顺序从后往前渲染）")
-    private List<@Valid WatermarkBaseDTO> watermarks;
+    private List<@Valid WatermarkItemDTO> watermarks;
 
     @Schema(description = "预览图 MinIO Key（将水印列表作用于底图后的预览图）", example = "preview/template_123_456.png")
     private String previewImageKey;

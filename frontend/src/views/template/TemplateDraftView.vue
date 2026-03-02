@@ -330,64 +330,12 @@ async function loadDraft() {
       draftName.value = res.data.name || ''
       baseConfig.value = res.data.config?.baseConfig || baseConfig.value
       
+      // 直接使用后端返回的水印列表，无需转换
       const backendWatermarks = res.data.config?.watermarks || []
-      const convertedWatermarks: WatermarkItemDTO[] = []
-      
-      backendWatermarks.forEach((wm: any, index: number) => {
-        if (wm.type === 'text') {
-          convertedWatermarks.push({
-            id: `text-${index}-${Date.now()}`,
-            type: 'text',
-            name: '文字水印',
-            x: wm.position?.x || 0,
-            y: wm.position?.y || 0,
-            textConfig: {
-              content: wm.content || '',
-              fontSize: wm.fontSize || 32,
-              fontFamily: wm.font?.name || 'Microsoft YaHei',
-              fontUrl: wm.font?.fontUrl,
-              color: wm.color || '#333333',
-              align: 'left' as const,
-              fontWeight: wm.bold ? 700 : 400,
-              italicAngle: wm.skewAngle || 0,
-              rotation: wm.rotation || 0,
-              opacity: wm.opacity ?? 1,
-              strokeEnabled: !!wm.stroke,
-              strokeColor: wm.stroke?.color,
-              strokeWidth: wm.stroke?.width,
-              shadowEnabled: !!wm.shadow,
-              shadowColor: wm.shadow?.color,
-              shadowBlur: wm.shadow?.blur,
-              shadowOffsetX: wm.shadow?.offsetX,
-              shadowOffsetY: wm.shadow?.offsetY,
-              gradientEnabled: !!wm.gradient,
-              gradientColors: wm.gradient?.stops?.map((s: any) => s.color),
-              gradientAngle: wm.gradient?.angle
-            }
-          })
-        } else if (wm.type === 'image') {
-          convertedWatermarks.push({
-            id: `image-${index}-${Date.now()}`,
-            type: 'image',
-            name: '图片水印',
-            x: wm.position?.x || 0,
-            y: wm.position?.y || 0,
-            rotation: wm.rotation || 0,
-            opacity: wm.opacity ?? 1,
-            imageConfig: {
-              imageUrl: wm.imageUrl || '',
-              imageKey: wm.imageKey,
-              scale: wm.scale || 100,
-              fitMode: wm.fitMode || 'aspectFit',
-              anchor: wm.anchor || 'center',
-              originalWidth: wm.originalWidth,
-              originalHeight: wm.originalHeight
-            }
-          })
-        }
-      })
-      
-      watermarks.value = convertedWatermarks
+      watermarks.value = backendWatermarks.map((wm: any) => ({
+        ...wm,
+        name: wm.name || (wm.type === 'text' ? '文字水印' : '图片水印')
+      }))
       
       if (res.data.hasConflict) {
         conflictMessage.value = res.data.conflictMessage || '模板已被其他人修改'
@@ -487,6 +435,7 @@ async function handleSaveDraft() {
   
   saving.value = true
   try {
+    // 先上传本地图片文件
     for (const wm of watermarks.value) {
       if (wm.type === 'image' && wm.imageConfig?.localFile) {
         try {
@@ -494,7 +443,7 @@ async function handleSaveDraft() {
           if (res.code === 200) {
             wm.imageConfig.imageUrl = res.data
             wm.imageConfig.imageKey = res.data
-            wm.imageConfig.localFile = undefined
+            delete wm.imageConfig.localFile
           }
         } catch (error) {
           console.error('上传图片失败:', error)
@@ -505,79 +454,19 @@ async function handleSaveDraft() {
       }
     }
     
-    const backendWatermarks = watermarks.value.map(wm => {
-      if (wm.type === 'text' && wm.textConfig) {
-        const tc = wm.textConfig
-        return {
-          type: 'text',
-          position: {
-            coordinateTypeEnum: 'ABSOLUTE',
-            x: wm.x,
-            y: wm.y
-          },
-          rotation: tc.rotation || 0,
-          opacity: tc.opacity ?? 1,
-          content: tc.content,
-          font: {
-            name: tc.fontFamily,
-            fontUrl: tc.fontUrl,
-            isSystemFont: !tc.fontUrl
-          },
-          fontSize: tc.fontSize,
-          color: tc.color,
-          bold: (tc.fontWeight || 400) >= 700,
-          skewAngle: tc.italicAngle || 0,
-          stroke: tc.strokeEnabled ? {
-            width: tc.strokeWidth || 0,
-            color: tc.strokeColor || '#000000'
-          } : undefined,
-          shadow: tc.shadowEnabled ? {
-            blur: tc.shadowBlur || 0,
-            color: tc.shadowColor || '#000000',
-            offsetX: tc.shadowOffsetX || 0,
-            offsetY: tc.shadowOffsetY || 0
-          } : undefined,
-          gradient: tc.gradientEnabled && tc.gradientColors ? {
-            type: 'linear',
-            angle: tc.gradientAngle || 0,
-            stops: [
-              { offset: 0, color: tc.gradientColors[0] },
-              { offset: 1, color: tc.gradientColors[1] }
-            ]
-          } : undefined
-        }
-      } else if (wm.type === 'image' && wm.imageConfig) {
-        return {
-          type: 'image',
-          position: {
-            coordinateTypeEnum: 'ABSOLUTE',
-            x: wm.x,
-            y: wm.y
-          },
-          rotation: wm.rotation || 0,
-          opacity: wm.opacity ?? 1,
-          imageUrl: wm.imageConfig.imageUrl,
-          imageKey: wm.imageConfig.imageKey,
-          scale: wm.imageConfig.scale || 100,
-          fitMode: wm.imageConfig.fitMode || 'aspectFit',
-          anchor: wm.imageConfig.anchor || 'center',
-          originalWidth: wm.imageConfig.originalWidth,
-          originalHeight: wm.imageConfig.originalHeight
-        }
-      }
-      return null
-    }).filter(Boolean)
-    
+    // 直接发送数据，无需转换
     const config: WatermarkConfigDTO = {
       baseConfig: baseConfig.value,
-      watermarks: backendWatermarks as any
+      watermarks: watermarks.value
     }
+    
     const res = await saveDraft({
       sourceTemplateId: draft.value?.sourceTemplateId,
       sourceVersion: draft.value?.sourceVersion,
       name: draftName.value,
       config
     })
+    
     if (res.code === 200) {
       draft.value = res.data
       ElMessage.success('草稿已保存')
