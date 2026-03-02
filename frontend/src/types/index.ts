@@ -91,6 +91,7 @@ export interface TextWatermarkConfigDTO {
   italicAngle: number
   rotation: number
   opacity: number
+  letterSpacing: number
   strokeEnabled: boolean
   strokeColor?: string
   strokeWidth?: number
@@ -114,6 +115,7 @@ export interface ImageWatermarkConfigDTO {
   imageUrl: string
   imageKey?: string
   scale: number
+  opacity: number
   fitMode: FitMode
   anchor: AnchorPosition
   originalWidth?: number

@@ -35,13 +35,30 @@
         </div>
       </el-form-item>
       
-      <el-form-item label="适应模式">
-        <el-radio-group v-model="localConfig.fitMode" @change="handleFitModeChange">
-          <el-radio-button label="none">无</el-radio-button>
-          <el-radio-button label="scaleToFill">填充</el-radio-button>
-          <el-radio-button label="aspectFit">适应</el-radio-button>
-          <el-radio-button label="aspectFill">覆盖</el-radio-button>
-        </el-radio-group>
+      <el-form-item>
+        <div class="mode-opacity-row">
+          <div class="mode-item">
+            <span class="row-label">适应模式</span>
+            <el-radio-group v-model="localConfig.fitMode" @change="handleFitModeChange">
+              <el-radio-button label="none">无</el-radio-button>
+              <el-radio-button label="scaleToFill">填充</el-radio-button>
+              <el-radio-button label="aspectFit">适应</el-radio-button>
+              <el-radio-button label="aspectFill">覆盖</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div class="opacity-item">
+            <span class="row-label">透明度</span>
+            <el-slider 
+              v-model="localConfig.opacity" 
+              :min="0" 
+              :max="1" 
+              :step="0.01" 
+              @input="handleUpdate" 
+              :format-tooltip="(val: number) => Math.round(val * 100) + '%'"
+              style="width: 160px"
+            />
+          </div>
+        </div>
       </el-form-item>
       
       <el-form-item v-if="localConfig.fitMode === 'none'" label="参数">
@@ -103,7 +120,10 @@ const emit = defineEmits<{
   update: [config: ImageWatermarkConfig]
 }>()
 
-const localConfig = ref<ImageWatermarkConfig>({ ...props.config })
+const localConfig = ref<ImageWatermarkConfig>({
+  ...props.config,
+  opacity: props.config.opacity ?? 1  // 确保初始值有 opacity
+})
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const previewUrl = ref<string>('')
 
@@ -193,7 +213,14 @@ const currentHeight = computed(() => {
 })
 
 watch(() => props.config, (newConfig) => {
-  localConfig.value = { ...newConfig }
+  // 只有当新配置的 imageUrl 变化时才完全重置（即切换了图片）
+  // 其他情况保留用户当前的编辑状态
+  if (newConfig.imageUrl !== localConfig.value.imageUrl) {
+    localConfig.value = { 
+      ...newConfig,
+      opacity: newConfig.opacity ?? 1
+    }
+  }
   if (newConfig.imageUrl) {
     previewUrl.value = newConfig.imageUrl
   } else if (newConfig.localFile) {
@@ -398,6 +425,30 @@ function handleUpdate() {
         padding: 5px 10px;
         font-size: 12px;
       }
+    }
+  }
+  
+  .mode-opacity-row {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    
+    .mode-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .opacity-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .row-label {
+      font-size: 12px;
+      color: #606266;
+      white-space: nowrap;
     }
   }
   

@@ -61,6 +61,9 @@ public class TextWatermarkConfigDTO {
     @Schema(description = "透明度（0-1）", example = "1.0")
     private Double opacity;
 
+    @Schema(description = "字符间距（像素，正值为加宽，负值为紧缩）", example = "0")
+    private Double letterSpacing;
+
     @NotNull(message = "描边启用状态不能为空")
     @Schema(description = "是否启用描边", example = "false")
     private Boolean strokeEnabled;

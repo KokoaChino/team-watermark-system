@@ -6,7 +6,6 @@
           v-model="draftName"
           placeholder="请输入模板名称"
           style="width: 300px"
-          @change="handleNameChange"
         />
         <el-tag v-if="draft?.sourceTemplateId" type="info" size="small">
           编辑自模板 #{{ draft.sourceTemplateId }}
@@ -31,18 +30,18 @@
             <el-row :gutter="12">
               <el-col :span="6">
                 <el-form-item label="宽度" label-width="40px">
-                  <el-input-number v-model="baseConfig.width" :min="100" :max="5000" :step="10" @change="handleBaseConfigChange" />
+                  <el-input-number v-model="baseConfig.width" :min="100" :max="5000" :step="10" />
                 </el-form-item>
               </el-col>
               <el-col :span="6">
                 <el-form-item label="高度" label-width="40px">
-                  <el-input-number v-model="baseConfig.height" :min="100" :max="5000" :step="10" @change="handleBaseConfigChange" />
+                  <el-input-number v-model="baseConfig.height" :min="100" :max="5000" :step="10" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="背景色">
-                  <el-color-picker v-model="baseConfig.backgroundColor" @change="handleBaseConfigChange" />
-                  <el-input v-model="baseConfig.backgroundColor" style="width: 80px; margin-left: 8px" size="small" @change="handleBaseConfigChange" />
+                  <el-color-picker v-model="baseConfig.backgroundColor" />
+                  <el-input v-model="baseConfig.backgroundColor" style="width: 80px; margin-left: 8px" size="small" />
                 </el-form-item>
               </el-col>
             </el-row>
@@ -75,7 +74,6 @@
               item-key="id"
               handle=".drag-handle"
               animation="200"
-              @change="handleWatermarkOrderChange"
             >
               <template #item="{ element, index }">
                 <div
@@ -110,7 +108,6 @@
                 v-model="selectedWatermark.name" 
                 size="small" 
                 class="name-input"
-                @change="handleWatermarkChange"
               />
               <span class="header-label">参数设置</span>
             </div>
@@ -126,7 +123,6 @@
                     :max="10000" 
                     :precision="1"
                     :step="1"
-                    @change="handleWatermarkChange" 
                   />
                 </el-form-item>
               </el-col>
@@ -138,7 +134,6 @@
                     :max="10000" 
                     :precision="1"
                     :step="1"
-                    @change="handleWatermarkChange" 
                   />
                 </el-form-item>
               </el-col>
@@ -305,6 +300,7 @@ function getDefaultTextConfig(): TextWatermarkConfig {
     italicAngle: 0,
     rotation: 0,
     opacity: 1,
+    letterSpacing: 0,
     strokeEnabled: false,
     shadowEnabled: false,
     gradientEnabled: false
@@ -315,6 +311,7 @@ function getDefaultImageConfig(): ImageWatermarkConfig {
   return {
     imageUrl: '',
     scale: 100,
+    opacity: 1,
     fitMode: 'aspectFit',
     anchor: 'none',
     originalWidth: undefined,
@@ -330,11 +327,15 @@ async function loadDraft() {
       draftName.value = res.data.name || ''
       baseConfig.value = res.data.config?.baseConfig || baseConfig.value
       
-      // 直接使用后端返回的水印列表，无需转换
+      // 直接使用后端返回的水印列表，无需转换，但补充默认值
       const backendWatermarks = res.data.config?.watermarks || []
       watermarks.value = backendWatermarks.map((wm: any) => ({
         ...wm,
-        name: wm.name || (wm.type === 'text' ? '文字水印' : '图片水印')
+        name: wm.name || (wm.type === 'text' ? '文字水印' : '图片水印'),
+        imageConfig: wm.imageConfig ? {
+          ...wm.imageConfig,
+          opacity: wm.imageConfig.opacity ?? 1  // 补充默认透明度
+        } : undefined
       }))
       
       if (res.data.hasConflict) {
@@ -365,21 +366,6 @@ async function handleClearDraft() {
   }
 }
 
-function handleNameChange() {
-}
-
-function handleBaseConfigChange() {
-  // 不需要手动调用 renderPreview，因为 baseConfig 被监听会自动触发
-}
-
-function handleWatermarkChange() {
-  // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
-}
-
-function handleWatermarkOrderChange() {
-  // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
-}
-
 function handleAddWatermark(type: 'text' | 'image') {
   const newWatermark: WatermarkItemDTO = {
     id: generateId(),
@@ -394,7 +380,6 @@ function handleAddWatermark(type: 'text' | 'image') {
   }
   watermarks.value.push(newWatermark)
   selectedWatermarkId.value = newWatermark.id
-  // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
 }
 
 function selectWatermark(id: string) {
@@ -407,13 +392,11 @@ function removeWatermark(index: number) {
   if (selectedWatermarkId.value === removed.id) {
     selectedWatermarkId.value = watermarks.value.length > 0 ? watermarks.value[0].id : null
   }
-  // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
 }
 
 function handleTextConfigUpdate(config: TextWatermarkConfig) {
   if (selectedWatermark.value && selectedWatermark.value.textConfig) {
     selectedWatermark.value.textConfig = config
-    // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
   }
 }
 
@@ -423,7 +406,6 @@ function handleImageConfigUpdate(config: ImageWatermarkConfig) {
     if (config.imageUrl) {
       preloadImage(config.imageUrl)
     }
-    // 不需要手动调用 renderPreview，因为 watermarks 被深度监听会自动触发
   }
 }
 
@@ -459,7 +441,6 @@ async function handleSaveDraft() {
       baseConfig: baseConfig.value,
       watermarks: watermarks.value
     }
-    
     const res = await saveDraft({
       sourceTemplateId: draft.value?.sourceTemplateId,
       sourceVersion: draft.value?.sourceVersion,
@@ -525,7 +506,8 @@ function refreshPreview() {
 }
 
 function findWatermarkAtPosition(canvasX: number, canvasY: number): WatermarkItemDTO | null {
-  for (let i = watermarks.value.length - 1; i >= 0; i--) {
+  // 从前往后遍历，优先选中列表中靠前（显示在上层）的水印
+  for (let i = 0; i < watermarks.value.length; i++) {
     const watermark = watermarks.value[i]
     
     if (watermark.type === 'image' && !watermark.imageConfig?.imageUrl) {
@@ -736,7 +718,9 @@ async function renderPreview() {
     
     watermarkBounds.value.clear()
     
-    for (const watermark of watermarks.value) {
+    // 反向遍历：列表下方的水印先渲染，上方的后渲染（显示在上层）
+    for (let i = watermarks.value.length - 1; i >= 0; i--) {
+      const watermark = watermarks.value[i]
       const bounds = await drawWatermark(ctx, watermark, scale)
       if (bounds) {
         watermarkBounds.value.set(watermark.id, bounds)
@@ -788,7 +772,8 @@ async function drawWatermark(ctx: CanvasRenderingContext2D, watermark: Watermark
     ctx.globalAlpha = watermark.textConfig.opacity ?? 1
     bounds = await drawTextWatermark(ctx, watermark.textConfig, scale, centerX, centerY, rotation)
   } else if (watermark.type === 'image' && watermark.imageConfig?.imageUrl) {
-    ctx.globalAlpha = watermark.opacity ?? 1
+    // 图片水印透明度：0-100 转换为 0-1
+    ctx.globalAlpha = watermark.imageConfig.opacity ?? 1
     bounds = await drawImageWatermark(ctx, watermark.imageConfig, scale, centerX, centerY, rotation, watermark)
   }
   
@@ -846,7 +831,7 @@ async function drawTextWatermark(
   const fontSize = config.fontSize * scale
   const fontWeight = config.fontWeight || 400
   ctx.font = `${fontWeight} ${fontSize}px "${fontFamily}"`
-  ctx.textAlign = config.align
+  ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   
   const italicAngle = config.italicAngle ?? 0
@@ -855,23 +840,35 @@ async function drawTextWatermark(
     ctx.transform(1, 0, Math.tan(skewRad), 1, 0, 0)
   }
   
-  const metrics = ctx.measureText(config.content)
-  const width = metrics.width
-  const ascent = metrics.actualBoundingBoxAscent || fontSize / 2
-  const descent = metrics.actualBoundingBoxDescent || fontSize / 2
+  const letterSpacing = (config.letterSpacing || 0) * scale
+  const content = config.content
+  const chars = Array.from(content)
   
-  let offsetX = 0
+  // 计算每个字符的宽度和总宽度
+  const charMetrics = chars.map(char => ctx.measureText(char))
+  const charWidths = charMetrics.map(m => m.width)
+  const charTotalWidth = charWidths.reduce((sum, w) => sum + w, 0)
+  const totalSpacing = Math.max(0, chars.length - 1) * letterSpacing
+  const totalWidth = charTotalWidth + totalSpacing
+  
+  const ascent = charMetrics[0]?.actualBoundingBoxAscent || fontSize / 2
+  const descent = charMetrics[0]?.actualBoundingBoxDescent || fontSize / 2
+  
+  // 根据对齐方式计算起始偏移
+  let startX = 0
   if (config.align === 'left') {
-    offsetX = width / 2
+    startX = totalWidth / 2
   } else if (config.align === 'right') {
-    offsetX = -width / 2
+    startX = -totalWidth / 2
   }
+  // center 时 startX = 0
   
+  // 设置填充样式
   if (config.gradientEnabled && config.gradientColors && config.gradientColors.length >= 2) {
     const angle = (config.gradientAngle ?? 0) * Math.PI / 180
     const cos = Math.cos(angle)
     const sin = Math.sin(angle)
-    const halfW = width / 2
+    const halfW = totalWidth / 2
     const gradient = ctx.createLinearGradient(
       -halfW * cos, -halfW * sin,
       halfW * cos, halfW * sin
@@ -883,6 +880,7 @@ async function drawTextWatermark(
     ctx.fillStyle = config.color
   }
   
+  // 设置阴影
   if (config.shadowEnabled && config.shadowColor) {
     ctx.shadowColor = config.shadowColor
     ctx.shadowBlur = (config.shadowBlur || 0) * scale
@@ -890,17 +888,44 @@ async function drawTextWatermark(
     ctx.shadowOffsetY = (config.shadowOffsetY || 0) * scale
   }
   
-  ctx.fillText(config.content, 0, 0)
+  // 逐字符绘制
+  let currentX = -totalWidth / 2 + startX
+  for (let i = 0; i < chars.length; i++) {
+    const char = chars[i]
+    const charWidth = charWidths[i]
+    
+    ctx.fillText(char, currentX + charWidth / 2, 0)
+    
+    currentX += charWidth + letterSpacing
+  }
   
+  // 描边（同样逐字符绘制）
   if (config.strokeEnabled && config.strokeColor && config.strokeWidth) {
     ctx.shadowColor = 'transparent'
     ctx.shadowBlur = 0
     ctx.strokeStyle = config.strokeColor
     ctx.lineWidth = config.strokeWidth * scale
-    ctx.strokeText(config.content, 0, 0)
+    
+    currentX = -totalWidth / 2 + startX
+    for (let i = 0; i < chars.length; i++) {
+      const char = chars[i]
+      const charWidth = charWidths[i]
+      
+      ctx.strokeText(char, currentX + charWidth / 2, 0)
+      
+      currentX += charWidth + letterSpacing
+    }
   }
   
-  const halfWidth = width / 2 / scale
+  // 计算边界框
+  let offsetX = 0
+  if (config.align === 'left') {
+    offsetX = totalWidth / 2
+  } else if (config.align === 'right') {
+    offsetX = -totalWidth / 2
+  }
+  
+  const halfWidth = totalWidth / 2 / scale
   const halfHeight = (ascent + descent) / 2 / scale
   const boundsOffsetX = offsetX / scale
   const boundsOffsetY = (descent - ascent) / 2 / scale
@@ -978,6 +1003,8 @@ async function drawImageWatermark(
         
         ctx.restore()
         ctx.save()
+        // 重新应用透明度（save/restore 会重置 globalAlpha）
+        ctx.globalAlpha = config.opacity ?? 1
         ctx.translate(actualCenterX * scale, actualCenterY * scale)
         ctx.rotate(rotation)
         
@@ -1104,23 +1131,28 @@ function drawSelectionBorder(ctx: CanvasRenderingContext2D, watermark: Watermark
     const fontSize = config.fontSize * scale
     const fontWeight = config.fontWeight || 400
     ctx.font = `${fontWeight} ${fontSize}px "${config.fontFamily}"`
-    ctx.textAlign = config.align
+    ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     
-    const metrics = ctx.measureText(config.content)
-    const width = metrics.width
+    // 计算带字符间距的总宽度
+    const letterSpacing = (config.letterSpacing || 0) * scale
+    const chars = Array.from(config.content)
+    const charWidths = chars.map(char => ctx.measureText(char).width)
+    const charTotalWidth = charWidths.reduce((sum, w) => sum + w, 0)
+    const totalSpacing = Math.max(0, chars.length - 1) * letterSpacing
+    const totalWidth = charTotalWidth + totalSpacing
     
-    const ascent = metrics.actualBoundingBoxAscent || fontSize / 2
-    const descent = metrics.actualBoundingBoxDescent || fontSize / 2
+    const ascent = ctx.measureText(config.content).actualBoundingBoxAscent || fontSize / 2
+    const descent = ctx.measureText(config.content).actualBoundingBoxDescent || fontSize / 2
     
     let offsetX = 0
     if (config.align === 'left') {
-      offsetX = width / 2
+      offsetX = totalWidth / 2
     } else if (config.align === 'right') {
-      offsetX = -width / 2
+      offsetX = -totalWidth / 2
     }
     
-    ctx.strokeRect(offsetX - width / 2 - 5, -ascent - 5, width + 10, ascent + descent + 10)
+    ctx.strokeRect(offsetX - totalWidth / 2 - 5, -ascent - 5, totalWidth + 10, ascent + descent + 10)
   } else if (watermark.type === 'image' && watermark.imageConfig && watermark.imageConfig.imageUrl) {
     const config = watermark.imageConfig
     const canvasWidth = baseConfig.value.width

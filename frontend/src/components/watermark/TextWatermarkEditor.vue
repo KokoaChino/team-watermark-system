@@ -76,7 +76,30 @@
         </el-col>
         <el-col :span="12">
           <el-form-item label="透明度">
-            <el-slider v-model="localConfig.opacity" :min="0" :max="1" :step="0.01" @input="handleUpdate" class="right-padded-slider" />
+            <el-slider 
+              v-model="localConfig.opacity" 
+              :min="0" 
+              :max="1" 
+              :step="0.01" 
+              @input="handleUpdate" 
+              class="right-padded-slider"
+              :format-tooltip="(val: number) => Math.round(val * 100) + '%'"
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+      
+      <el-row :gutter="12">
+        <el-col :span="24">
+          <el-form-item label="字间距">
+            <el-slider 
+              v-model="localConfig.letterSpacing" 
+              :min="-40"
+              :max="100" 
+              :step="1" 
+              @input="handleUpdate" 
+              :format-tooltip="(val: number) => val + 'px'"
+            />
           </el-form-item>
         </el-col>
       </el-row>
@@ -255,7 +278,10 @@ function handleFontChange(value: string) {
 
 watch(() => props.config, (newConfig) => {
   if (!newConfig) return
-  localConfig.value = { ...newConfig }
+  localConfig.value = { 
+    ...newConfig,
+    letterSpacing: newConfig.letterSpacing ?? 0
+  }
   if (newConfig.gradientColors && newConfig.gradientColors.length >= 2) {
     gradientColor1.value = newConfig.gradientColors[0]
     gradientColor2.value = newConfig.gradientColors[1]
