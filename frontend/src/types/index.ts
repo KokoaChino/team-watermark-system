@@ -100,11 +100,18 @@ export interface TextWatermarkConfig {
   gradientAngle?: number
 }
 
+export type FitMode = 'none' | 'scaleToFill' | 'aspectFit' | 'aspectFill'
+export type AnchorPosition = 'none' | 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight' | 'center'
+
 export interface ImageWatermarkConfig {
   imageUrl: string
   imageKey?: string
+  localFile?: File
   scale: number
-  fitMode: 'contain' | 'cover' | 'stretch'
+  fitMode: FitMode
+  anchor: AnchorPosition
+  originalWidth?: number
+  originalHeight?: number
 }
 
 export interface DraftVO {

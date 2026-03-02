@@ -155,6 +155,8 @@
           <template v-else>
             <ImageWatermarkEditor
               :config="selectedWatermark.imageConfig!"
+              :canvas-width="baseConfig.width"
+              :canvas-height="baseConfig.height"
               @update="handleImageConfigUpdate"
             />
           </template>
@@ -214,6 +216,7 @@ import {
   submitDraft,
   clearDraft
 } from '@/api/template'
+import { uploadFile } from '@/api/file'
 import type {
   DraftVO,
   WatermarkItemDTO,
@@ -311,8 +314,11 @@ function getDefaultTextConfig(): TextWatermarkConfig {
 function getDefaultImageConfig(): ImageWatermarkConfig {
   return {
     imageUrl: '',
-    scale: 1,
-    fitMode: 'contain'
+    scale: 100,
+    fitMode: 'aspectFit',
+    anchor: 'none',
+    originalWidth: undefined,
+    originalHeight: undefined
   }
 }
 
@@ -371,8 +377,11 @@ async function loadDraft() {
             imageConfig: {
               imageUrl: wm.imageUrl || '',
               imageKey: wm.imageKey,
-              scale: wm.scale || 1,
-              fitMode: wm.fitMode || 'contain'
+              scale: wm.scale || 100,
+              fitMode: wm.fitMode || 'aspectFit',
+              anchor: wm.anchor || 'center',
+              originalWidth: wm.originalWidth,
+              originalHeight: wm.originalHeight
             }
           })
         }
@@ -478,6 +487,24 @@ async function handleSaveDraft() {
   
   saving.value = true
   try {
+    for (const wm of watermarks.value) {
+      if (wm.type === 'image' && wm.imageConfig?.localFile) {
+        try {
+          const res = await uploadFile(wm.imageConfig.localFile, 'watermark/')
+          if (res.code === 200) {
+            wm.imageConfig.imageUrl = res.data
+            wm.imageConfig.imageKey = res.data
+            wm.imageConfig.localFile = undefined
+          }
+        } catch (error) {
+          console.error('上传图片失败:', error)
+          ElMessage.error(`图片上传失败: ${wm.name}`)
+          saving.value = false
+          return
+        }
+      }
+    }
+    
     const backendWatermarks = watermarks.value.map(wm => {
       if (wm.type === 'text' && wm.textConfig) {
         const tc = wm.textConfig
@@ -531,8 +558,11 @@ async function handleSaveDraft() {
           opacity: wm.opacity ?? 1,
           imageUrl: wm.imageConfig.imageUrl,
           imageKey: wm.imageConfig.imageKey,
-          scale: wm.imageConfig.scale || 1,
-          fitMode: wm.imageConfig.fitMode || 'contain'
+          scale: wm.imageConfig.scale || 100,
+          fitMode: wm.imageConfig.fitMode || 'aspectFit',
+          anchor: wm.imageConfig.anchor || 'center',
+          originalWidth: wm.imageConfig.originalWidth,
+          originalHeight: wm.imageConfig.originalHeight
         }
       }
       return null
@@ -608,6 +638,11 @@ function refreshPreview() {
 function findWatermarkAtPosition(canvasX: number, canvasY: number): WatermarkItemDTO | null {
   for (let i = watermarks.value.length - 1; i >= 0; i--) {
     const watermark = watermarks.value[i]
+    
+    if (watermark.type === 'image' && !watermark.imageConfig?.imageUrl) {
+      continue
+    }
+    
     const bounds = watermarkBounds.value.get(watermark.id)
     if (!bounds) continue
     
@@ -640,15 +675,21 @@ function handleCanvasMouseDown(e: MouseEvent) {
   
   if (hitWatermark) {
     selectedWatermarkId.value = hitWatermark.id
-    isDragging.value = true
-    dragStartX.value = canvasX
-    dragStartY.value = canvasY
-    dragWatermarkStartX.value = hitWatermark.x
-    dragWatermarkStartY.value = hitWatermark.y
-    previewCanvas.value.style.cursor = 'grabbing'
     
-    document.addEventListener('mousemove', handleDocumentMouseMove)
-    document.addEventListener('mouseup', handleDocumentMouseUp)
+    const canDrag = hitWatermark.type === 'text' || 
+      (hitWatermark.type === 'image' && hitWatermark.imageConfig?.fitMode === 'none')
+    
+    if (canDrag) {
+      isDragging.value = true
+      dragStartX.value = canvasX
+      dragStartY.value = canvasY
+      dragWatermarkStartX.value = hitWatermark.x
+      dragWatermarkStartY.value = hitWatermark.y
+      previewCanvas.value.style.cursor = 'grabbing'
+      
+      document.addEventListener('mousemove', handleDocumentMouseMove)
+      document.addEventListener('mouseup', handleDocumentMouseUp)
+    }
   } else {
     selectedWatermarkId.value = null
   }
@@ -714,6 +755,12 @@ function handleResizeEnd() {
 function handleCanvasWheel(e: WheelEvent) {
   if (!selectedWatermark.value) return
   
+  if (selectedWatermark.value.type === 'image' && selectedWatermark.value.imageConfig) {
+    if (selectedWatermark.value.imageConfig.fitMode !== 'none') {
+      return
+    }
+  }
+  
   e.preventDefault()
   
   const delta = e.deltaY > 0 ? -1 : 1
@@ -722,7 +769,7 @@ function handleCanvasWheel(e: WheelEvent) {
     const newFontSize = Math.max(1, Math.min(10000, selectedWatermark.value.textConfig.fontSize + delta))
     selectedWatermark.value.textConfig.fontSize = newFontSize
   } else if (selectedWatermark.value.type === 'image' && selectedWatermark.value.imageConfig) {
-    const newScale = Math.max(0.1, Math.min(3, selectedWatermark.value.imageConfig.scale + delta * 0.05))
+    const newScale = Math.max(1, Math.min(1000, selectedWatermark.value.imageConfig.scale + delta))
     selectedWatermark.value.imageConfig.scale = newScale
   }
   
@@ -746,7 +793,13 @@ function handleCanvasMouseMove(e: MouseEvent) {
     renderPreview()
   } else {
     const hitWatermark = findWatermarkAtPosition(canvasX, canvasY)
-    previewCanvas.value.style.cursor = hitWatermark ? 'grab' : 'default'
+    if (hitWatermark) {
+      const canDrag = hitWatermark.type === 'text' || 
+        (hitWatermark.type === 'image' && hitWatermark.imageConfig?.fitMode === 'none')
+      previewCanvas.value.style.cursor = canDrag ? 'grab' : 'pointer'
+    } else {
+      previewCanvas.value.style.cursor = 'default'
+    }
   }
 }
 
@@ -818,8 +871,13 @@ async function renderPreview() {
 }
 
 async function drawWatermark(ctx: CanvasRenderingContext2D, watermark: WatermarkItemDTO, scale: number): Promise<WatermarkBounds | null> {
-  const centerX = watermark.x
-  const centerY = watermark.y
+  let centerX = watermark.x
+  let centerY = watermark.y
+  
+  if (watermark.type === 'image' && watermark.imageConfig && watermark.imageConfig.fitMode !== 'none') {
+    centerX = baseConfig.value.width / 2
+    centerY = baseConfig.value.height / 2
+  }
   
   let rotation = 0
   if (watermark.type === 'text' && watermark.textConfig) {
@@ -842,7 +900,7 @@ async function drawWatermark(ctx: CanvasRenderingContext2D, watermark: Watermark
     bounds = await drawTextWatermark(ctx, watermark.textConfig, scale, centerX, centerY, rotation)
   } else if (watermark.type === 'image' && watermark.imageConfig?.imageUrl) {
     ctx.globalAlpha = watermark.opacity ?? 1
-    bounds = await drawImageWatermark(ctx, watermark.imageConfig, scale, centerX, centerY, rotation)
+    bounds = await drawImageWatermark(ctx, watermark.imageConfig, scale, centerX, centerY, rotation, watermark)
   }
   
   ctx.restore()
@@ -978,25 +1036,108 @@ async function drawImageWatermark(
   scale: number,
   centerX: number,
   centerY: number,
-  rotation: number
+  rotation: number,
+  watermark: WatermarkItemDTO
 ): Promise<WatermarkBounds | null> {
   try {
+    if (!config.imageUrl) return null
+    
     const img = await preloadImage(config.imageUrl)
-    const imgScale = config.scale * scale
-    const width = img.width * imgScale
-    const height = img.height * imgScale
     
-    ctx.drawImage(img, -width / 2, -height / 2, width, height)
+    const imgOriginalWidth = config.originalWidth || img.width
+    const imgOriginalHeight = config.originalHeight || img.height
     
-    const halfWidth = width / 2 / scale
-    const halfHeight = height / 2 / scale
+    const canvasWidth = baseConfig.value.width
+    const canvasHeight = baseConfig.value.height
+    
+    let drawWidth: number
+    let drawHeight: number
+    let actualCenterX = centerX
+    let actualCenterY = centerY
+    
+    if (config.fitMode === 'none') {
+      const scalePercent = config.scale / 100
+      drawWidth = imgOriginalWidth * scalePercent * scale
+      drawHeight = imgOriginalHeight * scalePercent * scale
+      
+      if (config.anchor !== 'none') {
+        const halfW = drawWidth / 2
+        const halfH = drawHeight / 2
+        
+        switch (config.anchor) {
+          case 'topLeft':
+            actualCenterX = halfW / scale
+            actualCenterY = halfH / scale
+            break
+          case 'topRight':
+            actualCenterX = canvasWidth - halfW / scale
+            actualCenterY = halfH / scale
+            break
+          case 'bottomLeft':
+            actualCenterX = halfW / scale
+            actualCenterY = canvasHeight - halfH / scale
+            break
+          case 'bottomRight':
+            actualCenterX = canvasWidth - halfW / scale
+            actualCenterY = canvasHeight - halfH / scale
+            break
+          case 'center':
+            actualCenterX = canvasWidth / 2
+            actualCenterY = canvasHeight / 2
+            break
+        }
+        
+        ctx.restore()
+        ctx.save()
+        ctx.translate(actualCenterX * scale, actualCenterY * scale)
+        ctx.rotate(rotation)
+        
+        if (watermark.x !== actualCenterX || watermark.y !== actualCenterY) {
+          watermark.x = actualCenterX
+          watermark.y = actualCenterY
+        }
+      }
+    } else if (config.fitMode === 'scaleToFill') {
+      drawWidth = canvasWidth * scale
+      drawHeight = canvasHeight * scale
+    } else if (config.fitMode === 'aspectFit') {
+      const imgRatio = imgOriginalWidth / imgOriginalHeight
+      const canvasRatio = canvasWidth / canvasHeight
+      
+      if (imgRatio > canvasRatio) {
+        drawWidth = canvasWidth * scale
+        drawHeight = drawWidth / imgRatio
+      } else {
+        drawHeight = canvasHeight * scale
+        drawWidth = drawHeight * imgRatio
+      }
+    } else if (config.fitMode === 'aspectFill') {
+      const imgRatio = imgOriginalWidth / imgOriginalHeight
+      const canvasRatio = canvasWidth / canvasHeight
+      
+      if (imgRatio > canvasRatio) {
+        drawHeight = canvasHeight * scale
+        drawWidth = drawHeight * imgRatio
+      } else {
+        drawWidth = canvasWidth * scale
+        drawHeight = drawWidth / imgRatio
+      }
+    } else {
+      drawWidth = imgOriginalWidth * scale
+      drawHeight = imgOriginalHeight * scale
+    }
+    
+    const halfWidth = drawWidth / 2
+    const halfHeight = drawHeight / 2
+    
+    ctx.drawImage(img, -halfWidth, -halfHeight, drawWidth, drawHeight)
     
     return {
-      centerX,
-      centerY,
+      centerX: actualCenterX,
+      centerY: actualCenterY,
       rotation,
-      halfWidth,
-      halfHeight,
+      halfWidth: halfWidth / scale,
+      halfHeight: halfHeight / scale,
       offsetX: 0,
       offsetY: 0
     }
@@ -1009,8 +1150,52 @@ async function drawImageWatermark(
 function drawSelectionBorder(ctx: CanvasRenderingContext2D, watermark: WatermarkItemDTO, scale: number) {
   ctx.save()
   
-  const x = watermark.x * scale
-  const y = watermark.y * scale
+  const canvasWidth = baseConfig.value.width
+  const canvasHeight = baseConfig.value.height
+  
+  let x = watermark.x * scale
+  let y = watermark.y * scale
+  
+  if (watermark.type === 'image' && watermark.imageConfig) {
+    const config = watermark.imageConfig
+    
+    if (config.fitMode !== 'none') {
+      x = canvasWidth * scale / 2
+      y = canvasHeight * scale / 2
+    } else if (config.anchor !== 'none') {
+      const scalePercent = config.scale / 100
+      const imgOriginalWidth = config.originalWidth || 100
+      const imgOriginalHeight = config.originalHeight || 100
+      const drawWidth = imgOriginalWidth * scalePercent * scale
+      const drawHeight = imgOriginalHeight * scalePercent * scale
+      const halfW = drawWidth / 2
+      const halfH = drawHeight / 2
+      
+      switch (config.anchor) {
+        case 'topLeft':
+          x = halfW
+          y = halfH
+          break
+        case 'topRight':
+          x = canvasWidth * scale - halfW
+          y = halfH
+          break
+        case 'bottomLeft':
+          x = halfW
+          y = canvasHeight * scale - halfH
+          break
+        case 'bottomRight':
+          x = canvasWidth * scale - halfW
+          y = canvasHeight * scale - halfH
+          break
+        case 'center':
+          x = canvasWidth * scale / 2
+          y = canvasHeight * scale / 2
+          break
+      }
+    }
+  }
+  
   ctx.translate(x, y)
   
   let rotation = 0
@@ -1047,9 +1232,54 @@ function drawSelectionBorder(ctx: CanvasRenderingContext2D, watermark: Watermark
     }
     
     ctx.strokeRect(offsetX - width / 2 - 5, -ascent - 5, width + 10, ascent + descent + 10)
-  } else if (watermark.type === 'image' && watermark.imageConfig) {
-    const size = 50 * watermark.imageConfig.scale * scale
-    ctx.strokeRect(-size / 2 - 5, -size / 2 - 5, size + 10, size + 10)
+  } else if (watermark.type === 'image' && watermark.imageConfig && watermark.imageConfig.imageUrl) {
+    const config = watermark.imageConfig
+    const canvasWidth = baseConfig.value.width
+    const canvasHeight = baseConfig.value.height
+    
+    let drawWidth: number
+    let drawHeight: number
+    
+    const imgOriginalWidth = config.originalWidth || 100
+    const imgOriginalHeight = config.originalHeight || 100
+    
+    if (config.fitMode === 'none') {
+      const scalePercent = config.scale / 100
+      drawWidth = imgOriginalWidth * scalePercent * scale
+      drawHeight = imgOriginalHeight * scalePercent * scale
+    } else if (config.fitMode === 'scaleToFill') {
+      drawWidth = canvasWidth * scale
+      drawHeight = canvasHeight * scale
+    } else if (config.fitMode === 'aspectFit') {
+      const imgRatio = imgOriginalWidth / imgOriginalHeight
+      const canvasRatio = canvasWidth / canvasHeight
+      
+      if (imgRatio > canvasRatio) {
+        drawWidth = canvasWidth * scale
+        drawHeight = drawWidth / imgRatio
+      } else {
+        drawHeight = canvasHeight * scale
+        drawWidth = drawHeight * imgRatio
+      }
+    } else if (config.fitMode === 'aspectFill') {
+      const imgRatio = imgOriginalWidth / imgOriginalHeight
+      const canvasRatio = canvasWidth / canvasHeight
+      
+      if (imgRatio > canvasRatio) {
+        drawHeight = canvasHeight * scale
+        drawWidth = drawHeight * imgRatio
+      } else {
+        drawWidth = canvasWidth * scale
+        drawHeight = drawWidth / imgRatio
+      }
+    } else {
+      drawWidth = imgOriginalWidth * scale
+      drawHeight = imgOriginalHeight * scale
+    }
+    
+    const halfWidth = drawWidth / 2
+    const halfHeight = drawHeight / 2
+    ctx.strokeRect(-halfWidth - 5, -halfHeight - 5, drawWidth + 10, drawHeight + 10)
   }
   
   ctx.restore()
