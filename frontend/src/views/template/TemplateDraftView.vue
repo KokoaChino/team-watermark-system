@@ -72,7 +72,7 @@
             <draggable
               v-model="watermarks"
               item-key="id"
-              handle=".drag-handle"
+              ghost-class="dragging-item"
               animation="200"
             >
               <template #item="{ element, index }">
@@ -1373,6 +1373,12 @@ watch([baseConfig, watermarks], () => {
 .watermark-list {
   max-height: 180px;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .watermark-item {
@@ -1381,10 +1387,11 @@ watch([baseConfig, watermarks], () => {
   align-items: center;
   padding: 8px 12px;
   border-radius: 6px;
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.2s;
   margin-bottom: 4px;
   border: 1px solid transparent;
+  user-select: none;
 
   &:hover {
     background-color: #f5f7fa;
@@ -1395,13 +1402,16 @@ watch([baseConfig, watermarks], () => {
     border-color: #409eff;
   }
 
+  &:active {
+    cursor: grabbing;
+  }
+
   .item-info {
     display: flex;
     align-items: center;
     gap: 8px;
 
     .drag-handle {
-      cursor: move;
       color: #909399;
       font-size: 14px;
     }
@@ -1425,6 +1435,24 @@ watch([baseConfig, watermarks], () => {
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+  }
+}
+
+.dragging-item {
+  opacity: 0.5;
+  background-color: #409eff !important;
+  border-color: #409eff !important;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
+
+  .item-index,
+  .item-name,
+  .drag-handle {
+    color: #fff !important;
+  }
+
+  .item-index {
+    background-color: rgba(255, 255, 255, 0.3);
   }
 }
 
