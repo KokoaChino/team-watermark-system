@@ -38,17 +38,19 @@ public interface WatermarkTemplateService {
      *
      * @param templateId 源模板ID
      * @param userId     用户ID
+     * @param force      是否强制创建（忽略冲突检查）
      * @return 草稿信息
      */
-    DraftVO createDraftFromTemplate(Integer templateId, Integer userId);
+    DraftVO createDraftFromTemplate(Integer templateId, Integer userId, boolean force);
 
     /**
      * 创建空的工作区草稿
      *
      * @param userId 用户ID
+     * @param force  是否强制创建（忽略冲突检查）
      * @return 草稿信息
      */
-    DraftVO createEmptyDraft(Integer userId);
+    DraftVO createEmptyDraft(Integer userId, boolean force);
 
     /**
      * 保存草稿
@@ -77,11 +79,4 @@ public interface WatermarkTemplateService {
      * @return 提交后的模板
      */
     WatermarkTemplateVO submitDraft(Integer userId, String username, Integer teamId, SubmitDraftDTO dto);
-
-    /**
-     * 清空草稿
-     *
-     * @param userId 用户ID
-     */
-    void clearDraft(Integer userId);
 }

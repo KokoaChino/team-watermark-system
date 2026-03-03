@@ -18,6 +18,7 @@ import com.github.kokoachino.model.dto.BaseConfigDTO;
 import com.github.kokoachino.model.dto.WatermarkConfigDTO;
 import com.github.kokoachino.model.entity.User;
 import com.github.kokoachino.model.entity.WatermarkTemplate;
+import java.time.LocalDateTime;
 import com.github.kokoachino.model.entity.WatermarkTemplateDraft;
 import com.github.kokoachino.model.vo.DraftVO;
 import com.github.kokoachino.model.vo.WatermarkTemplateVO;
@@ -44,6 +45,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateMapper, WatermarkTemplate>
         implements WatermarkTemplateService {
+
+    private static final int DRAFT_DEFAULT_STATE = -1;
 
     private final WatermarkTemplateMapper templateMapper;
     private final WatermarkTemplateDraftMapper draftMapper;
@@ -83,10 +86,18 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public DraftVO createDraftFromTemplate(Integer templateId, Integer userId) {
+    public DraftVO createDraftFromTemplate(Integer templateId, Integer userId, boolean force) {
         WatermarkTemplate template = templateMapper.selectById(templateId);
         if (template == null) {
             throw new BizException(ResultCode.TEMPLATE_NOT_FOUND);
+        }
+        WatermarkTemplateDraft existingDraft = draftMapper.selectByUserId(userId);
+        if (!force && existingDraft != null && !isDraftInDefaultState(existingDraft)) {
+            if (templateId.equals(existingDraft.getSourceTemplateId())) {
+                return convertToDraftVO(existingDraft, false, null);
+            }
+            return convertToDraftVO(existingDraft, true, 
+                    "当前存在未提交的草稿「" + existingDraft.getName() + "」，继续将覆盖之前的编辑内容");
         }
         deleteExistingDraft(userId);
         WatermarkTemplateDraft draft = new WatermarkTemplateDraft();
@@ -101,15 +112,25 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public DraftVO createEmptyDraft(Integer userId) {
+    public DraftVO createEmptyDraft(Integer userId, boolean force) {
+        WatermarkTemplateDraft existingDraft = draftMapper.selectByUserId(userId);
+        if (!force && existingDraft != null && !isDraftInDefaultState(existingDraft)) {
+            return convertToDraftVO(existingDraft, true, 
+                    "当前存在未提交的草稿「" + existingDraft.getName() + "」，继续将覆盖之前的编辑内容");
+        }
         deleteExistingDraft(userId);
         WatermarkConfigDTO defaultConfig = createDefaultConfig();
         WatermarkTemplateDraft draft = new WatermarkTemplateDraft();
         draft.setUserId(userId);
         draft.setName(systemProperties.getTemplate().getDefaultName());
+        draft.setSourceVersion(DRAFT_DEFAULT_STATE);
         draft.setConfig(convertConfigToJson(defaultConfig));
         draftMapper.insert(draft);
         return convertToDraftVO(draft, false, null);
+    }
+
+    private boolean isDraftInDefaultState(WatermarkTemplateDraft draft) {
+        return draft != null && draft.getSourceVersion() != null && draft.getSourceVersion().equals(DRAFT_DEFAULT_STATE);
     }
 
     @Override
@@ -127,14 +148,15 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
                     draft.setSourceVersion(dto.getSourceVersion());
                     draft.setName(dto.getName());
                     draft.setConfig(convertConfigToJson(dto.getConfig()));
+                    if (draft.getSourceVersion() != null && draft.getSourceVersion().equals(DRAFT_DEFAULT_STATE)) {
+                        draft.setSourceVersion(0);
+                    }
                     if (draft.getId() == null) {
                         draftMapper.insert(draft);
                     } else {
                         draftMapper.updateById(draft);
                     }
-                    boolean hasConflict = checkConflict(draft);
-                    String conflictMessage = hasConflict ? "该模板已被他人修改或删除" : null;
-                    return convertToDraftVO(draft, hasConflict, conflictMessage);
+                    return convertToDraftVO(draft, false, null);
                 }
         );
     }
@@ -145,9 +167,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         if (draft == null) {
             return null;
         }
-        boolean hasConflict = checkConflict(draft);
-        String conflictMessage = hasConflict ? "该模板已被他人修改或删除" : null;
-        return convertToDraftVO(draft, hasConflict, conflictMessage);
+        return convertToDraftVO(draft, false, null);
     }
 
     @Override
@@ -163,7 +183,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
                     WatermarkConfigDTO config = parseConfig(draft.getConfig());
                     if (draft.getSourceTemplateId() == null || Boolean.TRUE.equals(dto.getForceCreateNew())) {
                         WatermarkTemplateVO result = doCreateTemplate(teamId, userId, draft.getName(), config);
-                        clearDraft(userId);
+                        deleteExistingDraft(userId);
                         return result;
                     } else {
                         WatermarkTemplate sourceTemplate = templateMapper.selectById(draft.getSourceTemplateId());
@@ -174,20 +194,11 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
                             throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
                         }
                         WatermarkTemplateVO result = doUpdateTemplate(draft.getSourceTemplateId(), draft.getName(), config, draft.getSourceVersion());
-                        clearDraft(userId);
+                        deleteExistingDraft(userId);
                         return result;
                     }
                 }
         );
-    }
-
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void clearDraft(Integer userId) {
-        WatermarkTemplateDraft draft = draftMapper.selectByUserId(userId);
-        if (draft != null) {
-            draftMapper.deleteById(draft.getId());
-        }
     }
 
     private WatermarkTemplateVO doCreateTemplate(Integer teamId, Integer userId, String name, WatermarkConfigDTO config) {
@@ -212,6 +223,7 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         }
         template.setName(name);
         template.setConfig(convertConfigToJson(config));
+        template.setUpdatedAt(LocalDateTime.now());
         int affected = templateMapper.updateById(template);
         if (affected == 0) {
             throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
@@ -226,17 +238,6 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         if (existingDraft != null) {
             draftMapper.deleteById(existingDraft.getId());
         }
-    }
-
-    private boolean checkConflict(WatermarkTemplateDraft draft) {
-        if (draft.getSourceTemplateId() == null) {
-            return false;
-        }
-        WatermarkTemplate sourceTemplate = templateMapper.selectById(draft.getSourceTemplateId());
-        if (sourceTemplate == null) {
-            return true;
-        }
-        return !sourceTemplate.getVersion().equals(draft.getSourceVersion());
     }
 
     private WatermarkConfigDTO createDefaultConfig() {

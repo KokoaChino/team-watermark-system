@@ -24,12 +24,12 @@ export function getCurrentDraft() {
   return request.get<never, ResultDTO<DraftVO>>('/api/template/draft/current')
 }
 
-export function createNewDraft() {
-  return request.post<never, ResultDTO<DraftVO>>('/api/template/draft/new')
+export function createNewDraft(force: boolean = false) {
+  return request.post<never, ResultDTO<DraftVO>>(`/api/template/draft/new?force=${force}`)
 }
 
-export function createDraftFromTemplate(templateId: number) {
-  return request.post<never, ResultDTO<DraftVO>>(`/api/template/draft/from-template/${templateId}`)
+export function createDraftFromTemplate(templateId: number, force: boolean = false) {
+  return request.post<never, ResultDTO<DraftVO>>(`/api/template/draft/from-template/${templateId}?force=${force}`)
 }
 
 export function saveDraft(data: SaveDraftDTO) {
@@ -38,8 +38,4 @@ export function saveDraft(data: SaveDraftDTO) {
 
 export function submitDraft(data: SubmitDraftDTO) {
   return request.post<never, ResultDTO<WatermarkTemplateVO>>('/api/template/draft/submit', data)
-}
-
-export function clearDraft() {
-  return request.delete<never, ResultDTO<void>>('/api/template/draft/clear')
 }

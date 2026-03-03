@@ -208,8 +208,7 @@ import {
   getCurrentDraft,
   createNewDraft,
   saveDraft,
-  submitDraft,
-  clearDraft
+  submitDraft
 } from '@/api/template'
 import { uploadFile } from '@/api/file'
 import type {
@@ -355,8 +354,7 @@ async function handleClearDraft() {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    await clearDraft()
-    await createNewDraft()
+    await createNewDraft(true)
     ElMessage.success('草稿已清空')
     await loadDraft()
   } catch (error) {

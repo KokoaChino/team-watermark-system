@@ -585,9 +585,23 @@ async function fetchUserFonts() {
 
 async function handleCreateNew() {
   try {
-    const res = await createNewDraft()
+    const res = await createNewDraft(false)
     if (res.code === 200) {
-      router.push('/template/draft')
+      if (res.data.hasConflict) {
+        try {
+          await ElMessageBox.confirm(res.data.conflictMessage || '当前存在未提交的草稿，继续将覆盖之前的编辑内容', '提示', {
+            confirmButtonText: '继续',
+            cancelButtonText: '取消',
+            type: 'warning'
+          })
+          await createNewDraft(true)
+          router.push('/template/draft')
+        } catch {
+          // 用户取消
+        }
+      } else {
+        router.push('/template/draft')
+      }
     }
   } catch (error) {
     console.error('创建草稿失败:', error)
@@ -596,9 +610,23 @@ async function handleCreateNew() {
 
 async function handleEdit(row: WatermarkTemplateVO) {
   try {
-    const res = await createDraftFromTemplate(row.id)
+    const res = await createDraftFromTemplate(row.id, false)
     if (res.code === 200) {
-      router.push('/template/draft')
+      if (res.data.hasConflict) {
+        try {
+          await ElMessageBox.confirm(res.data.conflictMessage || '当前存在未提交的草稿，继续将覆盖之前的编辑内容', '提示', {
+            confirmButtonText: '继续',
+            cancelButtonText: '取消',
+            type: 'warning'
+          })
+          await createDraftFromTemplate(row.id, true)
+          router.push('/template/draft')
+        } catch {
+          // 用户取消
+        }
+      } else {
+        router.push('/template/draft')
+      }
     }
   } catch (error) {
     console.error('创建草稿失败:', error)
