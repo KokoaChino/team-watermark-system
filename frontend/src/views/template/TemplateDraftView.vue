@@ -459,6 +459,61 @@ async function handleSaveDraft() {
   }
 }
 
+async function renderHighQualityPreview(): Promise<HTMLCanvasElement | null> {
+  const tempCanvas = document.createElement('canvas')
+  tempCanvas.width = baseConfig.value.width
+  tempCanvas.height = baseConfig.value.height
+  const tempCtx = tempCanvas.getContext('2d')
+  if (!tempCtx) return null
+  
+  const scale = 1
+  
+  tempCtx.fillStyle = baseConfig.value.backgroundColor || '#ffffff'
+  tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
+  
+  for (let i = watermarks.value.length - 1; i >= 0; i--) {
+    const watermark = watermarks.value[i]
+    await drawWatermark(tempCtx, watermark, scale)
+  }
+  
+  return tempCanvas
+}
+
+function canvasToHighQualityFile(): Promise<File | null> {
+  return new Promise(async (resolve) => {
+    const tempCanvas = await renderHighQualityPreview()
+    if (!tempCanvas) {
+      resolve(null)
+      return
+    }
+    
+    tempCanvas.toBlob((blob) => {
+      if (blob) {
+        const file = new File([blob], `preview_${Date.now()}.png`, { type: 'image/png' })
+        resolve(file)
+      } else {
+        resolve(null)
+      }
+    }, 'image/png', 1.0)
+  })
+}
+
+async function uploadPreviewImage(): Promise<string | null> {
+  try {
+    const file = await canvasToHighQualityFile()
+    if (!file) return null
+    
+    const res = await uploadFile(file, 'preview/')
+    if (res.code === 200) {
+      return res.data
+    }
+    return null
+  } catch (error) {
+    console.error('上传预览图失败:', error)
+    return null
+  }
+}
+
 async function handleSubmitDraft() {
   if (!draftName.value.trim()) {
     ElMessage.warning('请输入模板名称')
@@ -467,6 +522,21 @@ async function handleSubmitDraft() {
   
   submitting.value = true
   try {
+    const previewImageKey = await uploadPreviewImage()
+    
+    const config: WatermarkConfigDTO = {
+      baseConfig: baseConfig.value,
+      watermarks: watermarks.value,
+      previewImageKey: previewImageKey || undefined
+    }
+    
+    await saveDraft({
+      sourceTemplateId: draft.value?.sourceTemplateId,
+      sourceVersion: draft.value?.sourceVersion,
+      name: draftName.value,
+      config
+    })
+    
     const res = await submitDraft({ forceCreateNew: false })
     if (res.code === 200) {
       ElMessage.success('模板提交成功')

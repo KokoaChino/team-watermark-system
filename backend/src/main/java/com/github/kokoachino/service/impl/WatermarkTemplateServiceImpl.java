@@ -191,7 +191,6 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
     }
 
     private WatermarkTemplateVO doCreateTemplate(Integer teamId, Integer userId, String name, WatermarkConfigDTO config) {
-        checkTemplateNameExists(teamId, name, null);
         WatermarkTemplate template = new WatermarkTemplate();
         template.setTeamId(teamId);
         template.setName(name);
@@ -208,7 +207,6 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         if (template == null) {
             throw new BizException(ResultCode.TEMPLATE_NOT_FOUND);
         }
-        checkTemplateNameExists(template.getTeamId(), name, templateId);
         if (!version.equals(template.getVersion())) {
             throw new BizException(ResultCode.TEMPLATE_VERSION_CONFLICT);
         }
@@ -221,19 +219,6 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
         operationLogService.log(EventTypeEnum.TEMPLATE_UPDATE, templateId, name,
                 Map.of("beforeVersion", version, "afterVersion", template.getVersion()));
         return convertToVO(template);
-    }
-
-    private void checkTemplateNameExists(Integer teamId, String name, Integer excludeId) {
-        LambdaQueryWrapper<WatermarkTemplate> wrapper = new LambdaQueryWrapper<WatermarkTemplate>()
-                .eq(WatermarkTemplate::getTeamId, teamId)
-                .eq(WatermarkTemplate::getName, name);
-        if (excludeId != null) {
-            wrapper.ne(WatermarkTemplate::getId, excludeId);
-        }
-        long count = templateMapper.selectCount(wrapper);
-        if (count > 0) {
-            throw new BizException(ResultCode.TEMPLATE_NAME_EXIST);
-        }
     }
 
     private void deleteExistingDraft(Integer userId) {
