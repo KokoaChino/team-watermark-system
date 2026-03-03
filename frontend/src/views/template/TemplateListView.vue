@@ -5,7 +5,7 @@
         <div class="card-header">
           <div class="header-left">
             <span>模板列表</span>
-            <el-tag type="info" size="small" class="count-tag">共 {{ templates.length }} 个</el-tag>
+            <el-tag type="info" size="small" class="count-tag">共 {{ filteredTemplates.length }} 个</el-tag>
           </div>
           <div class="header-right">
             <el-button type="primary" @click="handleCreateNew">
@@ -16,13 +16,64 @@
         </div>
       </template>
       
+      <div class="filter-section">
+        <el-input
+          v-model="filterName"
+          placeholder="搜索模板名称"
+          clearable
+          class="filter-input"
+          @input="handleFilterChange"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-select
+          v-model="filterCreators"
+          multiple
+          collapse-tags
+          collapse-tags-tooltip
+          placeholder="选择创建者"
+          clearable
+          class="filter-select"
+          @change="handleFilterChange"
+        >
+          <el-option
+            v-for="creator in creatorOptions"
+            :key="creator.id"
+            :label="creator.username"
+            :value="creator.id"
+          />
+        </el-select>
+        <el-date-picker
+          v-model="filterCreatedAt"
+          type="datetimerange"
+          range-separator="至"
+          start-placeholder="创建开始时间"
+          end-placeholder="创建结束时间"
+          value-format="YYYY-MM-DD HH:mm:ss"
+          class="filter-date"
+          @change="handleFilterChange"
+        />
+        <el-date-picker
+          v-model="filterUpdatedAt"
+          type="datetimerange"
+          range-separator="至"
+          start-placeholder="更新开始时间"
+          end-placeholder="更新结束时间"
+          value-format="YYYY-MM-DD HH:mm:ss"
+          class="filter-date"
+          @change="handleFilterChange"
+        />
+      </div>
+      
       <div class="template-scroll-wrapper" ref="scrollWrapperRef">
         <div 
           class="template-grid single-row"
           v-loading="loading"
         >
           <div 
-            v-for="item in templates" 
+            v-for="item in filteredTemplates" 
             :key="item.id"
             class="template-item"
             :class="{ active: selectedTemplate?.id === item.id }"
@@ -54,10 +105,6 @@
                     <span class="info-label">水印数</span>
                     <span class="info-value">{{ item.config?.watermarks?.length || 0 }}</span>
                   </div>
-                  <div class="info-row">
-                    <span class="info-label">创建时间</span>
-                    <span class="info-value">{{ formatDate(item.createdAt) }}</span>
-                  </div>
                 </div>
                 <div class="info-col">
                   <div class="info-row">
@@ -68,11 +115,15 @@
                     <span class="info-label">版本号</span>
                     <span class="info-value">v{{ item.version }}</span>
                   </div>
-                  <div class="info-row">
-                    <span class="info-label">更新时间</span>
-                    <span class="info-value">{{ formatDate(item.updatedAt) }}</span>
-                  </div>
                 </div>
+              </div>
+              <div class="info-row-full">
+                <span class="info-label">更新时间</span>
+                <span class="info-value">{{ formatDate(item.updatedAt) }}</span>
+              </div>
+              <div class="info-row-full" style="margin-bottom: 6px;">
+                <span class="info-label">创建时间</span>
+                <span class="info-value">{{ formatDate(item.createdAt) }}</span>
               </div>
               <div class="item-actions">
                 <el-button type="primary" size="small" @click.stop="handleEdit(item)">
@@ -319,7 +370,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Picture } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Picture, Search } from '@element-plus/icons-vue'
 import { getTemplateList, deleteTemplate, createDraftFromTemplate, createNewDraft } from '@/api/template'
 import { getFontList } from '@/api/font'
 import { getTeamInfo } from '@/api/team'
@@ -338,6 +389,67 @@ const selectedWatermarkId = ref<string | null>(null)
 const previewCanvasRef = ref<InstanceType<typeof PreviewCanvas> | null>(null)
 const scrollWrapperRef = ref<HTMLElement | null>(null)
 const userFonts = ref<FontVO[]>([])
+
+const filterName = ref('')
+const filterCreators = ref<number[]>([])
+const filterCreatedAt = ref<[string, string] | null>(null)
+const filterUpdatedAt = ref<[string, string] | null>(null)
+
+interface CreatorOption {
+  id: number
+  username: string
+}
+
+const creatorOptions = computed<CreatorOption[]>(() => {
+  const creatorMap = new Map<number, string>()
+  templates.value.forEach(t => {
+    if (t.createdById && t.createdByUsername) {
+      creatorMap.set(t.createdById, t.createdByUsername)
+    }
+  })
+  return Array.from(creatorMap.entries()).map(([id, username]) => ({ id, username }))
+})
+
+const filteredTemplates = computed(() => {
+  let result = templates.value
+  
+  if (filterName.value.trim()) {
+    const keyword = filterName.value.trim().toLowerCase()
+    result = result.filter(t => t.name.toLowerCase().includes(keyword))
+  }
+  
+  if (filterCreators.value.length > 0) {
+    result = result.filter(t => filterCreators.value.includes(t.createdById))
+  }
+  
+  if (filterCreatedAt.value && filterCreatedAt.value.length === 2) {
+    const [start, end] = filterCreatedAt.value
+    result = result.filter(t => {
+      if (!t.createdAt) return false
+      return t.createdAt >= start && t.createdAt <= end
+    })
+  }
+  
+  if (filterUpdatedAt.value && filterUpdatedAt.value.length === 2) {
+    const [start, end] = filterUpdatedAt.value
+    result = result.filter(t => {
+      if (!t.updatedAt) return false
+      return t.updatedAt >= start && t.updatedAt <= end
+    })
+  }
+  
+  return result
+})
+
+function handleFilterChange() {
+  if (selectedTemplate.value) {
+    const stillExists = filteredTemplates.value.some(t => t.id === selectedTemplate.value!.id)
+    if (!stillExists) {
+      selectedTemplate.value = null
+      selectedWatermarkId.value = null
+    }
+  }
+}
 
 const alignMap: Record<string, string> = {
   left: '左对齐',
@@ -380,6 +492,7 @@ function formatDate(dateStr: string) {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return date.toLocaleString('zh-CN', {
+    year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -563,6 +676,26 @@ onMounted(() => {
   }
 }
 
+.filter-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #ebeef5;
+  
+  .filter-input {
+    width: 200px;
+  }
+  
+  .filter-select {
+    width: 200px;
+  }
+  
+  .filter-date {
+    width: 360px;
+  }
+}
+
 .template-scroll-wrapper {
   overflow-x: auto;
   overflow-y: hidden;
@@ -657,7 +790,6 @@ onMounted(() => {
   .item-info-grid {
     display: flex;
     gap: 8px;
-    margin-bottom: 6px;
   }
 
   .info-col {
@@ -668,6 +800,12 @@ onMounted(() => {
   }
 
   .info-row {
+    display: flex;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .info-row-full {
     display: flex;
     font-size: 12px;
     line-height: 1.4;
