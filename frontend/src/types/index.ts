@@ -1,4 +1,4 @@
-export interface ResultDTO<T = unknown> {
+﻿export interface ResultDTO<T = unknown> {
   code: number
   message: string
   data: T
@@ -74,7 +74,7 @@ export interface WatermarkItemDTO {
   rotation?: number
   opacity?: number
   textConfig?: TextWatermarkConfigDTO
-  imageConfig?: ImageWatermarkConfigDTO
+  imageConfig?: ImageWatermarkConfig
 }
 
 /**

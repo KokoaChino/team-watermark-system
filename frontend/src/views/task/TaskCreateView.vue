@@ -1,92 +1,75 @@
-<template>
+﻿<template>
   <div class="task-create">
-    <el-card>
+    <el-card class="task-card">
       <template #header>
-        <span>创建批量任务</span>
+        <div class="card-header">
+          <div>
+            <h2>创建批量任务</h2>
+            <p>先选择一个水印模板，后续步骤会基于该模板配置任务。</p>
+          </div>
+        </div>
       </template>
-      <el-steps :active="currentStep" finish-status="success" style="margin-bottom: 32px">
-        <el-step title="选择模板" />
-        <el-step title="上传图片" />
-        <el-step title="配置Excel" />
-        <el-step title="确认提交" />
+
+      <el-steps :active="currentStep" finish-status="success" class="task-steps">
+        <el-step title="选择模板" description="复用模板列表能力，完成单模板选择" />
+        <el-step title="水印配置" description="第二步基础架构已预留" />
       </el-steps>
 
-      <div v-show="currentStep === 0" class="step-content">
-        <h3>选择水印模板</h3>
-        <el-radio-group v-model="selectedTemplateId">
-          <el-radio
-            v-for="template in templates"
-            :key="template.id"
-            :label="template.id"
-            border
-            class="template-radio"
-          >
-            <div class="template-option">
-              <span>{{ template.name }}</span>
-              <span class="template-info">创建者: {{ template.createdByUsername }}</span>
+      <section v-show="currentStep === 0" class="step-panel">
+        <TemplateBrowser
+          v-model="selectedTemplateId"
+          title="步骤一：选择模板"
+          empty-description="暂无可用模板，请先创建水印模板"
+          @select="handleTemplateSelect"
+        >
+          <template #header-actions>
+            <div v-if="selectedTemplate" class="selected-summary">
+              <span class="summary-label">当前已选</span>
+              <el-tag type="primary" effect="light">{{ selectedTemplate.name }}</el-tag>
             </div>
-          </el-radio>
-        </el-radio-group>
-        <div v-if="templates.length === 0" class="empty-tip">
-          暂无可用模板，请先创建水印模板
-        </div>
-      </div>
+          </template>
+        </TemplateBrowser>
+      </section>
 
-      <div v-show="currentStep === 1" class="step-content">
-        <h3>上传图片</h3>
-        <el-upload
-          v-model:file-list="imageList"
-          action="/api/upload"
-          list-type="picture-card"
-          :auto-upload="false"
-          :limit="100"
-          accept="image/*"
-        >
-          <el-icon><Plus /></el-icon>
-        </el-upload>
-        <div class="upload-tip">最多上传100张图片，支持jpg、png、jpeg格式</div>
-      </div>
+      <section v-show="currentStep === 1" class="step-panel step-placeholder">
+        <el-card shadow="never" class="placeholder-card">
+          <template #header>
+            <div class="placeholder-header">
+              <span>步骤二：水印配置</span>
+              <el-tag type="warning" effect="light">待开发</el-tag>
+            </div>
+          </template>
 
-      <div v-show="currentStep === 2" class="step-content">
-        <h3>上传Excel配置文件</h3>
-        <el-upload
-          v-model:file-list="excelFile"
-          :auto-upload="false"
-          accept=".xlsx,.xls"
-          :limit="1"
-        >
-          <el-button type="primary">选择文件</el-button>
-        </el-upload>
-        <div class="upload-tip">
-          Excel第一行为表头，需包含图片ID列和对应的文字水印内容列
-        </div>
-      </div>
+          <el-alert
+            type="info"
+            :closable="false"
+            title="当前只完成步骤一交互逻辑，步骤二暂时保留页面骨架。"
+            show-icon
+          />
 
-      <div v-show="currentStep === 3" class="step-content">
-        <h3>确认提交</h3>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="已选模板">
-            {{ selectedTemplate?.name }}
-          </el-descriptions-item>
-          <el-descriptions-item label="图片数量">
-            {{ imageList.length }} 张
-          </el-descriptions-item>
-          <el-descriptions-item label="Excel文件">
-            {{ excelFile[0]?.name || '未上传' }}
-          </el-descriptions-item>
-          <el-descriptions-item label="预估消耗点数">
-            {{ imageList.length }} 点
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
+          <el-descriptions v-if="selectedTemplate" :column="2" border class="template-summary">
+            <el-descriptions-item label="已选模板">{{ selectedTemplate.name }}</el-descriptions-item>
+            <el-descriptions-item label="创建者">{{ selectedTemplate.createdByUsername }}</el-descriptions-item>
+            <el-descriptions-item label="模板版本">v{{ selectedTemplate.version }}</el-descriptions-item>
+            <el-descriptions-item label="水印数量">
+              {{ selectedTemplate.config?.watermarks?.length || 0 }}
+            </el-descriptions-item>
+          </el-descriptions>
+        </el-card>
+      </section>
 
       <div class="step-actions">
-        <el-button v-if="currentStep > 0" @click="currentStep--">上一步</el-button>
-        <el-button v-if="currentStep < 3" type="primary" @click="handleNext">
+        <el-button v-if="currentStep > 0" @click="currentStep -= 1">上一步</el-button>
+        <el-button
+          v-if="currentStep === 0"
+          type="primary"
+          :disabled="!selectedTemplateId"
+          @click="currentStep = 1"
+        >
           下一步
         </el-button>
-        <el-button v-if="currentStep === 3" type="success" :loading="submitting" @click="handleSubmit">
-          提交任务
+        <el-button v-else type="primary" disabled>
+          提交任务（待开发）
         </el-button>
       </div>
     </el-card>
@@ -94,119 +77,84 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { getTemplateList } from '@/api/template'
+import { ref } from 'vue'
+import TemplateBrowser from '@/components/template/TemplateBrowser.vue'
 import type { WatermarkTemplateVO } from '@/types'
-import { Plus } from '@element-plus/icons-vue'
-
-const router = useRouter()
 
 const currentStep = ref(0)
-const templates = ref<WatermarkTemplateVO[]>([])
 const selectedTemplateId = ref<number | null>(null)
-const imageList = ref<any[]>([])
-const excelFile = ref<any[]>([])
-const submitting = ref(false)
+const selectedTemplate = ref<WatermarkTemplateVO | null>(null)
 
-const selectedTemplate = computed(() =>
-  templates.value.find(t => t.id === selectedTemplateId.value)
-)
-
-async function fetchTemplates() {
-  try {
-    const res = await getTemplateList()
-    if (res.code === 200) {
-      templates.value = res.data || []
-    }
-  } catch (error) {
-    console.error('获取模板列表失败:', error)
-  }
+function handleTemplateSelect(template: WatermarkTemplateVO | null) {
+  selectedTemplate.value = template
 }
-
-function handleNext() {
-  if (currentStep.value === 0) {
-    if (!selectedTemplateId.value) {
-      ElMessage.warning('请选择水印模板')
-      return
-    }
-  } else if (currentStep.value === 1) {
-    if (imageList.value.length === 0) {
-      ElMessage.warning('请上传至少一张图片')
-      return
-    }
-  }
-  currentStep.value++
-}
-
-async function handleSubmit() {
-  if (!selectedTemplateId.value) {
-    ElMessage.warning('请选择水印模板')
-    return
-  }
-  if (imageList.value.length === 0) {
-    ElMessage.warning('请上传图片')
-    return
-  }
-  submitting.value = true
-  try {
-    ElMessage.info('任务提交功能开发中')
-  } catch (error) {
-    console.error('提交任务失败:', error)
-  } finally {
-    submitting.value = false
-  }
-}
-
-onMounted(() => {
-  fetchTemplates()
-})
 </script>
 
 <style scoped lang="scss">
 .task-create {
-  .step-content {
-    min-height: 300px;
+  .task-card {
+    :deep(.el-card__header) {
+      padding: 20px 24px 16px;
+    }
+  }
 
-    h3 {
-      margin-bottom: 20px;
+  .card-header {
+    h2 {
+      margin: 0;
+      font-size: 22px;
       color: var(--color-text-primary);
     }
-  }
 
-  .template-radio {
-    margin: 0 12px 12px 0;
-
-    .template-option {
-      display: flex;
-      flex-direction: column;
-      padding: 8px 0;
-
-      .template-info {
-        font-size: 12px;
-        color: var(--color-text-secondary);
-      }
+    p {
+      margin: 8px 0 0;
+      color: var(--color-text-secondary);
+      font-size: 14px;
     }
   }
 
-  .upload-tip {
-    margin-top: 12px;
-    font-size: 13px;
-    color: var(--color-text-secondary);
+  .task-steps {
+    margin-bottom: 24px;
+    padding: 0 8px;
   }
 
-  .empty-tip {
-    padding: 40px;
-    text-align: center;
-    color: var(--color-text-secondary);
+  .step-panel {
+    min-height: 320px;
+  }
+
+  .selected-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .summary-label {
+      color: var(--color-text-secondary);
+      font-size: 13px;
+    }
+  }
+
+  .step-placeholder {
+    .placeholder-card {
+      border-radius: 12px;
+      background: linear-gradient(180deg, #fbfcfe 0%, #f5f7fa 100%);
+    }
+
+    .placeholder-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .template-summary {
+      margin-top: 20px;
+    }
   }
 
   .step-actions {
-    margin-top: 24px;
     display: flex;
     justify-content: center;
     gap: 12px;
+    margin-top: 24px;
   }
 }
 </style>

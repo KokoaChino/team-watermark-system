@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+﻿import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
 const router = createRouter({
@@ -47,15 +47,19 @@ const router = createRouter({
         },
         {
           path: 'task',
-          name: 'task',
-          component: () => import('@/views/task/TaskListView.vue'),
-          meta: { title: '批量任务' }
+          redirect: '/task/create'
         },
         {
           path: 'task/create',
           name: 'taskCreate',
           component: () => import('@/views/task/TaskCreateView.vue'),
-          meta: { title: '创建任务', parent: 'task' }
+          meta: { title: '创建批量任务', parent: 'task' }
+        },
+        {
+          path: 'task/execution',
+          name: 'taskExecution',
+          component: () => import('@/views/task/TaskListView.vue'),
+          meta: { title: '批量任务执行', parent: 'task' }
         },
         {
           path: 'logs',

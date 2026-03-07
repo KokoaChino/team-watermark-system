@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="main-layout">
     <aside class="sidebar">
       <div class="logo">
@@ -39,8 +39,8 @@
             <el-icon><Files /></el-icon>
             <span>批量任务</span>
           </template>
-          <el-menu-item index="/task">任务列表</el-menu-item>
-          <el-menu-item index="/task/create">创建任务</el-menu-item>
+          <el-menu-item index="/task/create">创建批量任务</el-menu-item>
+          <el-menu-item index="/task/execution">批量任务执行</el-menu-item>
         </el-sub-menu>
         <el-menu-item index="/logs">
           <el-icon><List /></el-icon>

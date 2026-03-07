@@ -4,6 +4,9 @@
 ### Trae ###
 .trae/
 
+### Codex ###
+.codex/
+
 ### node_modules ###
 node_modules/
 
