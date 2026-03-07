@@ -5,6 +5,7 @@
         <h2>批量图片水印协作平台</h2>
       </div>
       <el-menu
+        ref="sidebarMenuRef"
         :default-active="activeMenu"
         :default-openeds="defaultOpeneds"
         class="sidebar-menu"
@@ -151,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, reactive } from 'vue'
+import { ref, computed, nextTick, onMounted, watch, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -184,6 +185,7 @@ const paymentLoading = ref(false)
 const unregisterLoading = ref(false)
 const emailCountdown = ref(0)
 const profileFormRef = ref<FormInstance>()
+const sidebarMenuRef = ref<{ updateActiveIndex: (index: string) => void } | null>(null)
 
 const usernameRegex = /^[a-zA-Z0-9_\u4e00-\u9fa5]{4,16}$/
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
@@ -229,9 +231,23 @@ const pageTitle = computed(() => {
   return (route.meta?.title as string) || '首页'
 })
 
-function handleMenuSelect(index: string) {
-  if (index && index !== route.path) {
-    router.push(index)
+async function handleMenuSelect(index: string) {
+  if (!index || index === route.path) {
+    return
+  }
+
+  try {
+    const navigationResult = await router.push(index)
+    if (navigationResult) {
+      nextTick(() => {
+        sidebarMenuRef.value?.updateActiveIndex(route.path)
+      })
+    }
+  } catch (error) {
+    nextTick(() => {
+      sidebarMenuRef.value?.updateActiveIndex(route.path)
+    })
+    console.error('菜单跳转失败:', error)
   }
 }
 
@@ -398,12 +414,18 @@ defineExpose({ openPaymentDialog })
 
 onMounted(() => {
   fetchTeamInfo()
+  nextTick(() => {
+    sidebarMenuRef.value?.updateActiveIndex(route.path)
+  })
 })
 
 watch(
   () => route.path,
   () => {
     fetchTeamInfo()
+    nextTick(() => {
+      sidebarMenuRef.value?.updateActiveIndex(route.path)
+    })
   }
 )
 </script>
@@ -572,3 +594,4 @@ watch(
   padding: 8px 0;
 }
 </style>
+

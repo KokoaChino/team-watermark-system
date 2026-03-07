@@ -184,6 +184,38 @@ export interface BatchTaskVO {
   createdAt: string
 }
 
+export interface BatchTaskWatermarkInput {
+  watermarkId: string
+  watermarkName: string
+  type: WatermarkType
+  value: string
+  imagePreviewUrl?: string
+  localFile?: File
+  localFileName?: string
+}
+
+export interface BatchTaskImageDraft {
+  id: string
+  imageId: string
+  sourceFile: File
+  sourceFileName: string
+  previewUrl: string
+  size: number
+  watermarkInputs: BatchTaskWatermarkInput[]
+  targetDirectory: string
+  outputFileName: string
+  outputExtension: string
+}
+
+export interface PendingBatchTaskDraft {
+  templateId: number
+  templateName: string
+  templateVersion: number
+  templateSnapshot: WatermarkTemplateVO
+  createdAt: string
+  items: BatchTaskImageDraft[]
+}
+
 export interface OperationLogVO {
   id: number
   eventType: string

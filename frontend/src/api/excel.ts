@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+﻿import request from '@/utils/request'
 import type { ResultDTO, ExcelParseResultVO } from '@/types'
 
 export interface ParseExcelParams {
@@ -20,7 +20,7 @@ export function parseExcel(params: ParseExcelParams) {
   if (params.invalidCharHandling) {
     formData.append('invalidCharHandling', params.invalidCharHandling)
   }
-  return request.post<ResultDTO<ExcelParseResultVO>>('/api/excel/parse', formData, {
+  return request.post<never, ResultDTO<ExcelParseResultVO>>('/api/excel/parse', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }

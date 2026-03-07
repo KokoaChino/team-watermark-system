@@ -1,6 +1,10 @@
-import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
+﻿import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
+
+interface HandledRequestError extends Error {
+  __handled?: boolean
+}
 
 const request: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
@@ -30,17 +34,19 @@ request.interceptors.response.use(
       const userStore = useUserStore()
       userStore.setToken(newToken)
     }
-    
+
     const { data } = response
     if (data.code !== 200) {
-      ElMessage.error(data.message || '请求失败')
-      return Promise.reject(new Error(data.message || '请求失败'))
+      const requestError: HandledRequestError = new Error(data.message || '请求失败')
+      requestError.__handled = true
+      ElMessage.error(requestError.message)
+      return Promise.reject(requestError)
     }
     return data
   },
   (error) => {
     let message = '网络错误'
-    
+
     if (error.response) {
       message = error.response?.data?.message || `请求失败 (${error.response.status})`
     } else if (error.code === 'ECONNABORTED') {
@@ -50,9 +56,13 @@ request.interceptors.response.use(
     } else if (error.message) {
       message = error.message
     }
-    
+
+    const handledError: HandledRequestError = error instanceof Error ? error : new Error(message)
+    handledError.message = message
+    handledError.__handled = true
+
     ElMessage.error(message)
-    return Promise.reject(error)
+    return Promise.reject(handledError)
   }
 )
 
