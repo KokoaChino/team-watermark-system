@@ -216,6 +216,105 @@ export interface PendingBatchTaskDraft {
   items: BatchTaskImageDraft[]
 }
 
+export type BatchTaskExecutionStatus =
+  | 'queued'
+  | 'running'
+  | 'packaging'
+  | 'completed'
+  | 'completing'
+  | 'complete_failed'
+
+export type BatchTaskExecutionItemStatus = 'pending' | 'processing' | 'success' | 'failed'
+
+export interface BatchTaskExecutionWatermarkInput {
+  watermarkId: string
+  watermarkName: string
+  type: WatermarkType
+  value: string
+  localFileKey?: string
+  localFileName?: string
+}
+
+export interface BatchTaskExecutionItem {
+  id: string
+  imageId: string
+  sourceFileName: string
+  sourceFileSize: number
+  sourceFileType: string
+  sourceFileKey: string
+  sourceExtension: string
+  watermarkInputs: BatchTaskExecutionWatermarkInput[]
+  targetDirectory: string
+  outputFileName: string
+  outputExtension: string
+  status: BatchTaskExecutionItemStatus
+  durationMs: number
+  startedAt?: string
+  finishedAt?: string
+  errorMessage?: string
+  resultFileKey?: string
+  resultFileName?: string
+  resultMimeType?: string
+  resultFileSize?: number
+  resultWidth?: number
+  resultHeight?: number
+  resolvedTargetDirectory?: string
+  resolvedOutputFileName?: string
+  resolvedOutputExtension?: string
+}
+
+export interface BatchTaskExecutionSession {
+  id: string
+  taskId: number
+  taskNo: string
+  templateId: number
+  templateName: string
+  templateVersion: number
+  templateSnapshot: WatermarkTemplateVO
+  description: string
+  createdAt: string
+  startedAt?: string
+  finishedAt?: string
+  status: BatchTaskExecutionStatus
+  totalCount: number
+  processedCount: number
+  successCount: number
+  failedCount: number
+  currentItemId?: string
+  currentFileName?: string
+  lastError?: string
+  zipArtifactKey?: string
+  zipFileName?: string
+  zipReadyAt?: string
+  downloadedAt?: string
+  completionAttemptedAt?: string
+  items: BatchTaskExecutionItem[]
+}
+
+export interface BatchTaskExecutionReportItem {
+  itemId: string
+  imageId: string
+  sourceFileName: string
+  status: BatchTaskExecutionItemStatus
+  durationMs: number
+  outputPath?: string
+  errorMessage?: string
+}
+
+export interface BatchTaskExecutionReport {
+  taskId: number
+  taskNo: string
+  templateId: number
+  templateName: string
+  templateVersion: number
+  totalCount: number
+  successCount: number
+  failedCount: number
+  startedAt?: string
+  finishedAt?: string
+  items: BatchTaskExecutionReportItem[]
+}
+
 export interface OperationLogVO {
   id: number
   eventType: string

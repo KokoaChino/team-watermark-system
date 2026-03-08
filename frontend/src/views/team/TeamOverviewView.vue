@@ -280,7 +280,7 @@ async function handleTransferLeader(member: UserVO) {
 async function handleLeaveTeam() {
   try {
     await ElMessageBox.confirm(
-      '确定要退出当前团队吗？退出后将自动创建个人团队。',
+      '确定要退出当前团队吗？退出后将自动创建个人团队',
       '提示',
       {
         confirmButtonText: '确定',

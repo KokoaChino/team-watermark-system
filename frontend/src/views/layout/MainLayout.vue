@@ -140,7 +140,7 @@
     <el-dialog v-model="showUnregisterDialog" title="注销账户" width="400px">
       <div class="unregister-tip">
         <el-alert type="warning" :closable="false">
-          注销账户将永久删除您的账户及所有关联数据，此操作不可恢复。
+          注销账户将永久删除您的账户及所有关联数据，此操作不可恢复
         </el-alert>
       </div>
       <template #footer>

@@ -29,7 +29,7 @@ public class ExcelParseController {
 
     @PostMapping(value = "/parse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "解析Excel配置", description = """
-            解析Excel配置文件，返回图片ID与水印配置的对应关系。
+            解析Excel配置文件，返回图片ID与水印配置的对应关系
             
             支持的表头：
             - id：图片ID（ID映射模式下必须）

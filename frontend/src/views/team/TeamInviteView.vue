@@ -227,7 +227,7 @@ async function fetchRecords(codeId: number) {
 async function handleDeactivate(code: InviteCodeVO) {
   try {
     await ElMessageBox.confirm(
-      '确定要让该邀请码失效吗？失效后他人将无法使用。',
+      '确定要让该邀请码失效吗？失效后他人将无法使用',
       '提示',
       {
         confirmButtonText: '确定',

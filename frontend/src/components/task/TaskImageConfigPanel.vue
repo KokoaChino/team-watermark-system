@@ -92,7 +92,7 @@
                       @load="resetImageError(input.watermarkId)"
                     />
                     <div v-else class="preview-fallback">
-                      当前值无法直接预览，请确认图片地址是否可访问。
+                      当前值无法直接预览，请确认图片地址是否可访问
                     </div>
                   </div>
                   <div class="preview-actions">

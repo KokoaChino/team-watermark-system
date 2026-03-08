@@ -347,8 +347,19 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Document, UploadFilled } from '@element-plus/icons-vue'
 import TemplateBrowser from '@/components/template/TemplateBrowser.vue'
 import { parseExcel } from '@/api/excel'
-import { uploadFile } from '@/api/file'
+import { completeBatchTask, submitBatchTask } from '@/api/batchTask'
 import { useBatchTaskStore } from '@/stores/batchTask'
+import {
+  buildStorageInsufficientMessage,
+  buildStorageSetupFailureMessage,
+  consumePersistentStorageWarningMessage,
+  estimateDraftStorageNeed,
+  inspectBrowserStorage
+} from '@/utils/browserStorage'
+import {
+  buildExecutionReport,
+  cloneExecutionSession
+} from '@/utils/batchTaskExecution'
 import {
   applyExcelConfigToTaskImage,
   cloneTaskImageDraft,
@@ -360,10 +371,10 @@ import {
   validateTargetDirectory
 } from '@/utils/batchTask'
 import type {
+  BatchTaskExecutionSession,
   BatchTaskImageDraft,
   BatchTaskWatermarkInput,
   ImageConfigVO,
-  PendingBatchTaskDraft,
   WatermarkTemplateVO
 } from '@/types'
 
@@ -483,8 +494,7 @@ function handleTemplateSelect(template: WatermarkTemplateVO | null) {
 
   if (templateChanged && taskImages.value.length > 0) {
     resetTaskImages()
-    batchTaskStore.clearPendingDraft()
-    ElMessage.warning('模板已切换，步骤二中的图片和参数配置已清空，请重新配置。')
+    ElMessage.warning('模板已切换，步骤二中的图片和参数配置已清空，请重新配置')
   }
 }
 
@@ -617,23 +627,21 @@ async function importExcelConfig() {
     const applyResult = applyExcelConfigs(response.data.configs)
     closeExcelImportDialog()
 
-    ElMessage.success(
-      `Excel 解析完成，后端识别 ${response.data.validRowCount} 行，已匹配 ${applyResult.matchedCount} 张图片。`
-    )
+    ElMessage.success(`Excel 解析完成，后端识别 ${response.data.validRowCount} 行，已匹配 ${applyResult.matchedCount} 张图片`)
+
+
 
     if (applyResult.unmatchedImageIds.length) {
-      ElMessage.warning(
-        `以下图片 ID 未匹配到上传图片：${applyResult.unmatchedImageIds.slice(0, 5).join('、')}${applyResult.unmatchedImageIds.length > 5 ? ' 等' : ''}`
-      )
+      ElMessage.warning(`以下图片 ID 未匹配到上传图片：${applyResult.unmatchedImageIds.slice(0, 5).join('、')}${applyResult.unmatchedImageIds.length > 5 ? ' 等' : ''}`)
     }
 
     if (applyResult.overflowCount > 0) {
-      ElMessage.warning(`有 ${applyResult.overflowCount} 行 Excel 配置超出当前图片数量，已忽略。`)
+      ElMessage.warning(`有 ${applyResult.overflowCount} 行 Excel 配置超出当前图片数量，已忽略`)
     }
   } catch (error) {
     console.error('导入 Excel 配置失败:', error)
     if (!isHandledRequestError(error)) {
-      ElMessage.error(error instanceof Error ? error.message : '导入 Excel 配置失败，请检查文件内容或配置选项。')
+      ElMessage.error(error instanceof Error ? error.message : '导入 Excel 配置失败，请检查文件内容或配置选项')
     }
   } finally {
     importingExcel.value = false
@@ -973,9 +981,72 @@ function handlePaneResizeEnd() {
   persistLeftPaneWidth()
 }
 
+async function ensureBrowserStorageReady() {
+  const storageSnapshot = await inspectBrowserStorage(true)
+  if (!storageSnapshot.supported || typeof storageSnapshot.available !== 'number') {
+    return true
+  }
+
+  const requiredBytes = estimateDraftStorageNeed(taskImages.value)
+  if (storageSnapshot.available < requiredBytes) {
+    await ElMessageBox.alert(
+      buildStorageInsufficientMessage(requiredBytes, storageSnapshot.available),
+      '本地空间不足',
+      {
+        type: 'error',
+        confirmButtonText: '知道了'
+      }
+    )
+    return false
+  }
+
+  if (storageSnapshot.persisted === false) {
+    const warningMessage = consumePersistentStorageWarningMessage()
+    if (warningMessage) {
+      ElMessage.warning(warningMessage)
+    }
+  }
+
+  return true
+}
+async function abortSubmittedTaskForStorageFailure(taskId: number, sessionToAbort: BatchTaskExecutionSession) {
+  const message = buildStorageSetupFailureMessage()
+  const finishedAt = new Date().toISOString()
+  const abortedSession = cloneExecutionSession({
+    ...sessionToAbort,
+    status: 'completed',
+    startedAt: sessionToAbort.startedAt || finishedAt,
+    finishedAt,
+    processedCount: sessionToAbort.totalCount,
+    successCount: 0,
+    failedCount: sessionToAbort.totalCount,
+    currentItemId: undefined,
+    currentFileName: undefined,
+    lastError: message,
+    items: sessionToAbort.items.map((item) => ({
+      ...item,
+      status: 'failed',
+      durationMs: 0,
+      finishedAt,
+      errorMessage: message,
+      resultFileKey: undefined,
+      resultFileName: undefined,
+      resultMimeType: undefined
+    }))
+  })
+
+  await completeBatchTask({
+    taskId,
+    successCount: 0,
+    reportJson: JSON.stringify(buildExecutionReport(abortedSession))
+  })
+
+  return message
+}
+
 async function startTask() {
   if (!selectedTemplate.value) {
-    ElMessage.warning('请先选择模板')
+    ElMessage.warning('请先在步骤一选择模板')
     return
   }
 
@@ -991,23 +1062,46 @@ async function startTask() {
     return
   }
 
+  const storageReady = await ensureBrowserStorageReady()
+  if (!storageReady) {
+    return
+  }
+
   startingTask.value = true
 
   try {
-    const preparedItems = await uploadPendingWatermarkImages()
-    setTaskImages(preparedItems)
+    const submissionDescription = `${selectedTemplate.value.name}\uFF08${taskImages.value.length}\u5F20\uFF09`
+    const response = await submitBatchTask({
+      imageCount: taskImages.value.length,
+      description: submissionDescription
+    })
 
-    const pendingDraft: PendingBatchTaskDraft = {
-      templateId: selectedTemplate.value.id,
-      templateName: selectedTemplate.value.name,
-      templateVersion: selectedTemplate.value.version,
-      templateSnapshot: selectedTemplate.value,
-      createdAt: new Date().toISOString(),
-      items: preparedItems.map(cloneTaskImageDraft)
+    const preparedItems = taskImages.value.map(cloneTaskImageDraft)
+    const creationResult = await batchTaskStore.replaceWithNewSession({
+      task: response.data,
+      template: selectedTemplate.value,
+      items: preparedItems,
+      description: submissionDescription
+    })
+
+    if (!creationResult.persisted) {
+      try {
+        const rollbackMessage = await abortSubmittedTaskForStorageFailure(response.data.id, creationResult.session)
+        ElMessage.error(rollbackMessage)
+      } catch (rollbackError) {
+        if (!isHandledRequestError(rollbackError)) {
+          ElMessage.error(
+            rollbackError instanceof Error
+              ? rollbackError.message
+              : '任务配置已暂存，正在进入批量任务执行页'
+          )
+        }
+      } finally {
+        await batchTaskStore.clearExecutionSession(creationResult.session.id)
+      }
+      return
     }
 
-    batchTaskStore.setPendingDraft(pendingDraft)
-    ElMessage.success('任务配置已暂存，正在进入批量任务执行页。')
     allowStepTwoLeave.value = true
     try {
       await router.push('/task/execution')
@@ -1017,9 +1111,25 @@ async function startTask() {
     }
   } catch (error) {
     allowStepTwoLeave.value = false
-    console.error('准备批量任务失败:', error)
+
+    if (isSubmitConflictError(error)) {
+      const restoredSession = await batchTaskStore.restoreActiveSession()
+      if (restoredSession) {
+        ElMessage.warning('准备批量任务失败，请稍后重试')
+        allowStepTwoLeave.value = true
+        try {
+          await router.push('/task/execution')
+          return
+        } catch (navigationError) {
+          allowStepTwoLeave.value = false
+          throw navigationError
+        }
+      }
+    }
+
+    console.error('导入 Excel 配置失败:', error)
     if (!isHandledRequestError(error)) {
-      ElMessage.error(error instanceof Error ? error.message : '准备批量任务失败，请稍后重试。')
+      ElMessage.error(error instanceof Error ? error.message : '导入 Excel 配置失败，请检查文件内容或配置选项')
     }
   } finally {
     startingTask.value = false
@@ -1031,18 +1141,6 @@ function resetTaskImages() {
   taskImages.value = []
   dragPreviewIds.value = null
   watermarkPreviewErrors.value = {}
-}
-
-function restorePendingDraft() {
-  const pendingDraft = batchTaskStore.pendingDraft
-  if (!pendingDraft) {
-    return
-  }
-
-  selectedTemplateId.value = pendingDraft.templateId
-  selectedTemplate.value = pendingDraft.templateSnapshot
-  setTaskImages(pendingDraft.items.map(cloneTaskImageDraft))
-  currentStep.value = 1
 }
 
 function restoreLeftPaneWidth() {
@@ -1073,7 +1171,7 @@ function restoreExcelImportOptions() {
       : defaultExcelImportOptions.invalidCharHandling
     excelImportOptions.mergeMode = parsedOptions.mergeMode === 'fill-empty' ? 'fill-empty' : defaultExcelImportOptions.mergeMode
   } catch (error) {
-    console.error('恢复导入规则失败:', error)
+    console.error('导入 Excel 配置失败:', error)
   }
 }
 
@@ -1084,8 +1182,12 @@ function persistExcelImportOptions() {
   )
 }
 
-function isHandledRequestError(error: unknown): error is Error & { __handled?: boolean } {
+function isHandledRequestError(error: unknown): error is Error & { __handled?: boolean; code?: number } {
   return error instanceof Error && Boolean((error as Error & { __handled?: boolean }).__handled)
+}
+
+function isSubmitConflictError(error: unknown) {
+  return error instanceof Error && (error as Error & { code?: number }).code === 4001
 }
 
 function hasStepTwoUnsavedState() {
@@ -1238,30 +1340,6 @@ function clearWatermarkPreviewErrorsForImage(imageId: string) {
   }
 }
 
-async function uploadPendingWatermarkImages() {
-  const nextItems = taskImages.value.map(cloneTaskImageDraft)
-
-  for (const image of nextItems) {
-    for (const input of image.watermarkInputs) {
-      if (input.type !== 'image' || !input.localFile) {
-        continue
-      }
-
-      const response = await uploadFile(input.localFile, 'watermark/')
-      if (response.code !== 200 || !response.data) {
-        throw new Error(response.message || `图片“${image.sourceFileName}”的水印“${input.watermarkName}”上传失败`)
-      }
-
-      input.value = response.data
-      input.imagePreviewUrl = response.data
-      input.localFile = undefined
-      input.localFileName = ''
-    }
-  }
-
-  return nextItems
-}
-
 watch(currentStep, (step) => {
   if (step !== 1) {
     return
@@ -1289,7 +1367,6 @@ onBeforeRouteLeave(async () => {
 })
 
 onMounted(() => {
-  restorePendingDraft()
   restoreLeftPaneWidth()
   restoreExcelImportOptions()
   handleWindowResize()
@@ -1866,12 +1943,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-
-
-
-
-
-
-
-
-

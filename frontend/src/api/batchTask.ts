@@ -1,4 +1,4 @@
-import request from '@/utils/request'
+﻿import request from '@/utils/request'
 import type { ResultDTO, BatchTaskVO } from '@/types'
 
 export interface SubmitBatchTaskDTO {
@@ -7,7 +7,7 @@ export interface SubmitBatchTaskDTO {
 }
 
 export function submitBatchTask(data: SubmitBatchTaskDTO) {
-  return request.post<ResultDTO<BatchTaskVO>>('/api/batch-task/submit', data)
+  return request.post<never, ResultDTO<BatchTaskVO>>('/api/batch-task/submit', data)
 }
 
 export function completeBatchTask(data: {
@@ -25,7 +25,7 @@ export function completeBatchTask(data: {
   if (data.resultZip) {
     formData.append('resultZip', data.resultZip)
   }
-  return request.post<ResultDTO<string>>('/api/batch-task/complete', formData, {
+  return request.post<never, ResultDTO<string>>('/api/batch-task/complete', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }

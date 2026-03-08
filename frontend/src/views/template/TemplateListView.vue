@@ -67,7 +67,7 @@ async function handleCreateNew() {
       if (res.data.hasConflict) {
         try {
           await ElMessageBox.confirm(
-            res.data.conflictMessage || '当前存在未提交的草稿，继续将覆盖之前的编辑内容。',
+            res.data.conflictMessage || '当前存在未提交的草稿，继续将覆盖之前的编辑内容',
             '提示',
             {
               confirmButtonText: '继续',
@@ -96,7 +96,7 @@ async function handleEdit(row: WatermarkTemplateVO) {
       if (res.data.hasConflict) {
         try {
           await ElMessageBox.confirm(
-            res.data.conflictMessage || '当前存在未提交的草稿，继续将覆盖之前的编辑内容。',
+            res.data.conflictMessage || '当前存在未提交的草稿，继续将覆盖之前的编辑内容',
             '提示',
             {
               confirmButtonText: '继续',
@@ -120,7 +120,7 @@ async function handleEdit(row: WatermarkTemplateVO) {
 
 async function handleDelete(row: WatermarkTemplateVO) {
   try {
-    await ElMessageBox.confirm(`确定要删除模板 "${row.name}" 吗？`, '提示', {
+    await ElMessageBox.confirm(`确定要删除模板 “${row.name}” 吗？`, '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'

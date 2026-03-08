@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 
 interface HandledRequestError extends Error {
   __handled?: boolean
+  code?: number
 }
 
 const request: AxiosInstance = axios.create({
@@ -39,6 +40,7 @@ request.interceptors.response.use(
     if (data.code !== 200) {
       const requestError: HandledRequestError = new Error(data.message || '请求失败')
       requestError.__handled = true
+      requestError.code = data.code
       ElMessage.error(requestError.message)
       return Promise.reject(requestError)
     }
@@ -60,6 +62,7 @@ request.interceptors.response.use(
     const handledError: HandledRequestError = error instanceof Error ? error : new Error(message)
     handledError.message = message
     handledError.__handled = true
+    handledError.code = error.response?.data?.code
 
     ElMessage.error(message)
     return Promise.reject(handledError)
