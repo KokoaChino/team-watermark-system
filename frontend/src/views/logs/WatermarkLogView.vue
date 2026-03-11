@@ -4,8 +4,7 @@
       <template #header>
         <div class="page-header">
           <div>
-            <h2>水印资源日志</h2>
-            <p>查看模板与字体的创建、修改、删除、上传等操作记录</p>
+            <h2 class="page-card-title">水印资源日志</h2>
           </div>
         </div>
       </template>
@@ -267,10 +266,8 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .log-page {
-  .page-header h2 {
+  .page-header .page-card-title {
     margin: 0;
-    font-size: 22px;
-    color: var(--color-text-primary);
   }
 
   .page-header p {

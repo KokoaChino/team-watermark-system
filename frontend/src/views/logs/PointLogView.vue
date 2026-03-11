@@ -4,8 +4,7 @@
       <template #header>
         <div class="page-header">
           <div>
-            <h2>点数流水日志</h2>
-            <p>查看团队点数的充值、预扣、返还记录，以及对应的业务来源</p>
+            <h2 class="page-card-title">点数流水日志</h2>
           </div>
         </div>
       </template>
@@ -288,10 +287,8 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .log-page {
-  .page-header h2 {
+  .page-header .page-card-title {
     margin: 0;
-    font-size: 22px;
-    color: var(--color-text-primary);
   }
 
   .page-header p {

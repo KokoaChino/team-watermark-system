@@ -2,9 +2,9 @@
   <div class="task-create">
     <el-card class="task-card">
       <template #header>
-        <div class="card-header">
+        <div class="card-header page-card-header">
           <div class="header-intro">
-            <h2>创建批量任务</h2>
+            <h2 class="page-card-title">创建批量任务</h2>
           </div>
           <div class="header-steps">
             <el-steps :active="currentStep" align-center finish-status="success" class="task-steps">
@@ -34,9 +34,9 @@
       <section v-show="currentStep === 1" class="step-panel">
         <el-card class="step-two-card" shadow="never">
           <template #header>
-            <div class="step-card-header">
+            <div class="step-card-header page-card-header">
               <div class="step-card-title">
-                <span>步骤二：水印配置</span>
+                <h3 class="page-card-title">步骤二：水印配置</h3>
                 <el-tag v-if="selectedTemplate" type="primary" effect="light">
                   模板：{{ selectedTemplate.name }}
                 </el-tag>
@@ -1411,10 +1411,8 @@ onBeforeUnmount(() => {
     flex: 1;
     min-width: 0;
 
-    h2 {
+    .page-card-title {
       margin: 0;
-      font-size: 22px;
-      color: var(--color-text-primary);
     }
   }
 
@@ -1471,8 +1469,6 @@ onBeforeUnmount(() => {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    font-size: 15px;
-    font-weight: 500;
   }
 
   .step-card-title {

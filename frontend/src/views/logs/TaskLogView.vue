@@ -4,8 +4,7 @@
       <template #header>
         <div class="page-header">
           <div>
-            <h2>任务记录日志</h2>
-            <p>仅展示已完成点数结算的任务，支持按任务编号、模板名称和提交人快速筛选</p>
+            <h2 class="page-card-title">任务记录日志</h2>
           </div>
         </div>
       </template>
@@ -253,10 +252,8 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .log-page {
-  .page-header h2 {
+  .page-header .page-card-title {
     margin: 0;
-    font-size: 22px;
-    color: var(--color-text-primary);
   }
 
   .page-header p {

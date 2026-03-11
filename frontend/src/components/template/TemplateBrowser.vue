@@ -2,9 +2,9 @@
   <div class="template-browser">
     <el-card class="list-card">
       <template #header>
-        <div class="card-header">
+        <div class="card-header page-card-header">
           <div class="header-left">
-            <span>{{ title }}</span>
+            <h3 class="page-card-title">{{ title }}</h3>
             <el-tag v-if="showCountTag" type="info" size="small" class="count-tag">
               共 {{ filteredTemplates.length }} 个
             </el-tag>

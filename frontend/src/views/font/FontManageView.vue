@@ -2,8 +2,8 @@
   <div class="font-manage">
     <el-card>
       <template #header>
-        <div class="card-header">
-          <span>字体管理</span>
+        <div class="card-header page-card-header">
+          <h3 class="page-card-title">字体管理</h3>
           <el-button type="primary" @click="handleOpenUpload">
             上传字体
           </el-button>

@@ -2,8 +2,8 @@
   <div class="team-invite">
     <el-card>
       <template #header>
-        <div class="card-header">
-          <span>邀请码管理</span>
+        <div class="card-header page-card-header">
+          <h3 class="page-card-title">邀请码管理</h3>
           <el-button type="primary" @click="showGenerateDialog = true">
             生成邀请码
           </el-button>

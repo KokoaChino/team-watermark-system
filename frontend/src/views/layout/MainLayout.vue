@@ -238,7 +238,12 @@ const isLeaderRole = computed(() => teamInfo.value?.role === 'leader')
 const emailCodeDisabled = computed(() => emailCountdown.value > 0)
 const emailCodeText = computed(() => emailCountdown.value > 0 ? `${emailCountdown.value}s` : '发送验证码')
 const pageTitle = computed(() => {
-  return (route.meta?.title as string) || '首页'
+  const title = route.meta?.title as string | undefined
+  const parentTitle = route.meta?.parentTitle as string | undefined
+  if (parentTitle && title) {
+    return `${parentTitle} > ${title}`
+  }
+  return title || '首页'
 })
 
 async function handleMenuSelect(index: string) {

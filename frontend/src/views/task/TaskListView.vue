@@ -9,8 +9,8 @@
     <template v-else>
       <el-card class="status-card" shadow="never">
         <template #header>
-          <div class="card-header status-header">
-            <h3>批量任务执行</h3>
+          <div class="card-header status-header page-card-header">
+            <h3 class="page-card-title">批量任务执行</h3>
             <div class="header-actions">
               <el-tag :type="statusTagType" class="status-tag">{{ statusText }}</el-tag>
               <el-button
@@ -95,10 +95,8 @@
 
       <el-card class="report-card" shadow="never">
         <template #header>
-          <div class="report-header">
-            <div>
-              <h4>执行结果</h4>
-            </div>
+          <div class="report-header page-card-header">
+            <h3 class="page-card-title">执行结果</h3>
             <div class="report-header-actions">
               <el-button
                 v-if="canDeleteResultFiles"
@@ -1647,12 +1645,9 @@ function isHandledRequestError(error: unknown): error is HandledRequestError {
   gap: 16px;
 }
 
-.status-header h3,
-.report-header h4 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+.status-header .page-card-title,
+.report-header .page-card-title {
+  flex: 0 0 auto;
 }
 
 .header-actions,

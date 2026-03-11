@@ -87,3 +87,18 @@ a:hover {
   transform: translateY(-10px);
   opacity: 0;
 }
+
+.page-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-card-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+}

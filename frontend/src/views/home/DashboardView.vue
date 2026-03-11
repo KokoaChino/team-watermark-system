@@ -59,7 +59,7 @@
       <el-col :span="24">
         <el-card>
           <template #header>
-            <span>快捷操作</span>
+            <h3 class="page-card-title">快捷操作</h3>
           </template>
           <div class="quick-actions">
             <div class="action-item" @click="router.push('/template')">
@@ -95,8 +95,8 @@
       <el-col :span="24">
         <el-card>
           <template #header>
-            <div class="card-header">
-              <span>团队成员</span>
+            <div class="card-header page-card-header">
+              <h3 class="page-card-title">团队成员</h3>
               <el-button
                 v-if="teamInfo?.role === 'leader'"
                 type="primary"

@@ -4,8 +4,8 @@
       <el-col :span="24">
         <el-card class="team-info-card">
           <template #header>
-            <div class="card-header">
-              <span>团队信息</span>
+            <div class="card-header page-card-header">
+              <h3 class="page-card-title">团队信息</h3>
               <div class="header-actions">
                 <el-button
                   v-if="isLeader"
@@ -49,8 +49,8 @@
       <el-col :span="24">
         <el-card class="members-card">
           <template #header>
-            <div class="card-header">
-              <span>团队成员</span>
+            <div class="card-header page-card-header">
+              <h3 class="page-card-title">团队成员</h3>
               <el-button
                 v-if="isLeader"
                 type="success"

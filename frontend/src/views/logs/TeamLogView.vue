@@ -4,8 +4,7 @@
       <template #header>
         <div class="page-header">
           <div>
-            <h2>团队变更日志</h2>
-            <p>查看当前团队的邀请码、成员进出、队长转移与团队名称变更记录</p>
+            <h2 class="page-card-title">团队变更日志</h2>
           </div>
         </div>
       </template>
@@ -325,10 +324,8 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .log-page {
-  .page-header h2 {
+  .page-header .page-card-title {
     margin: 0;
-    font-size: 22px;
-    color: var(--color-text-primary);
   }
 
   .page-header p {
