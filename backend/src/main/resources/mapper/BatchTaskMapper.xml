@@ -2,9 +2,182 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.github.kokoachino.mapper.BatchTaskMapper">
 
-    <!-- 查询用户是否有未完成的任务 -->
+    <resultMap id="taskLogResultMap" type="com.github.kokoachino.model.vo.TaskLogVO">
+        <id column="id" property="id" />
+        <result column="taskNo" property="taskNo" />
+        <result column="createdById" property="createdById" />
+        <result column="createdByUsername" property="createdByUsername" />
+        <result column="userStatus" property="userStatus" />
+        <result column="templateId" property="templateId" />
+        <result column="templateName" property="templateName" />
+        <result column="templateVersion" property="templateVersion" />
+        <result column="templateSnapshot" property="templateSnapshot" />
+        <result column="description" property="description" />
+        <result column="totalCount" property="totalCount" />
+        <result column="successCount" property="successCount" />
+        <result column="failedCount" property="failedCount" />
+        <result column="totalDurationMs" property="totalDurationMs" />
+        <result column="totalSize" property="totalSize" />
+        <result column="resultZipKey" property="resultZipKey" />
+        <result column="report" property="report" />
+        <result column="deductedPoints" property="deductedPoints" />
+        <result column="consumedPoints" property="consumedPoints" />
+        <result column="refundedPoints" property="refundedPoints" />
+        <result column="status" property="status" />
+        <result column="startedAt" property="startedAt" />
+        <result column="finishedAt" property="finishedAt" />
+        <result column="createdAt" property="createdAt" />
+    </resultMap>
+
     <select id="countUncompletedByUserId" resultType="java.lang.Integer">
-        SELECT COUNT(*) FROM tw_batch_task WHERE created_by_id = #{userId} AND completed_at IS NULL
+        SELECT COUNT(*)
+        FROM tw_batch_task
+        WHERE created_by_id = #{userId}
+          AND finished_at IS NULL
     </select>
 
+    <select id="selectLogPage" resultMap="taskLogResultMap">
+        SELECT
+            t.id AS id,
+            t.task_no AS taskNo,
+            t.created_by_id AS createdById,
+            t.created_by_username AS createdByUsername,
+            t.user_status AS userStatus,
+            t.template_id AS templateId,
+            t.template_name AS templateName,
+            t.template_version AS templateVersion,
+            t.template_snapshot AS templateSnapshot,
+            t.description AS description,
+            t.total_count AS totalCount,
+            t.success_count AS successCount,
+            t.failed_count AS failedCount,
+            t.total_duration_ms AS totalDurationMs,
+            t.total_size AS totalSize,
+            t.result_zip_key AS resultZipKey,
+            t.report AS report,
+            t.started_at AS startedAt,
+            t.finished_at AS finishedAt,
+            t.created_at AS createdAt,
+            'completed' AS status,
+            COALESCE((
+                SELECT SUM(p.points)
+                FROM tw_point_change_log p
+                WHERE p.source_type = 'batch_task'
+                  AND p.source_id = t.task_no
+                  AND p.change_type = 'deduct'
+            ), 0) AS deductedPoints,
+            GREATEST(
+                COALESCE((
+                    SELECT SUM(p.points)
+                    FROM tw_point_change_log p
+                    WHERE p.source_type = 'batch_task'
+                      AND p.source_id = t.task_no
+                      AND p.change_type = 'deduct'
+                ), 0) - COALESCE((
+                    SELECT SUM(p.points)
+                    FROM tw_point_change_log p
+                    WHERE p.source_type = 'batch_task'
+                      AND p.source_id = t.task_no
+                      AND p.change_type = 'refund'
+                ), 0),
+                0
+            ) AS consumedPoints,
+            COALESCE((
+                SELECT SUM(p.points)
+                FROM tw_point_change_log p
+                WHERE p.source_type = 'batch_task'
+                  AND p.source_id = t.task_no
+                  AND p.change_type = 'refund'
+            ), 0) AS refundedPoints
+        FROM tw_batch_task t
+        WHERE t.team_id = #{teamId}
+          AND t.finished_at IS NOT NULL
+          AND EXISTS (
+                SELECT 1
+                FROM tw_point_change_log p
+                WHERE p.source_type = 'batch_task'
+                  AND p.source_id = t.task_no
+                  AND p.change_type = 'refund'
+          )
+        <if test="status != null and status != ''">
+            <choose>
+                <when test="status == 'submitted'">
+                    AND 1 = 0
+                </when>
+            </choose>
+        </if>
+        <if test="operatorKeyword != null and operatorKeyword != ''">
+            AND t.created_by_username LIKE CONCAT('%', #{operatorKeyword}, '%')
+        </if>
+        <if test="templateName != null and templateName != ''">
+            AND t.template_name LIKE CONCAT('%', #{templateName}, '%')
+        </if>
+        <if test="taskNo != null and taskNo != ''">
+            AND t.task_no LIKE CONCAT('%', #{taskNo}, '%')
+        </if>
+        <if test="startTime != null">
+            AND t.created_at <![CDATA[ >= ]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND t.created_at <![CDATA[ <= ]]> #{endTime}
+        </if>
+        ORDER BY t.finished_at DESC, t.created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countLogPage" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM tw_batch_task t
+        WHERE t.team_id = #{teamId}
+          AND t.finished_at IS NOT NULL
+          AND EXISTS (
+                SELECT 1
+                FROM tw_point_change_log p
+                WHERE p.source_type = 'batch_task'
+                  AND p.source_id = t.task_no
+                  AND p.change_type = 'refund'
+          )
+        <if test="status != null and status != ''">
+            <choose>
+                <when test="status == 'submitted'">
+                    AND 1 = 0
+                </when>
+            </choose>
+        </if>
+        <if test="operatorKeyword != null and operatorKeyword != ''">
+            AND t.created_by_username LIKE CONCAT('%', #{operatorKeyword}, '%')
+        </if>
+        <if test="templateName != null and templateName != ''">
+            AND t.template_name LIKE CONCAT('%', #{templateName}, '%')
+        </if>
+        <if test="taskNo != null and taskNo != ''">
+            AND t.task_no LIKE CONCAT('%', #{taskNo}, '%')
+        </if>
+        <if test="startTime != null">
+            AND t.created_at <![CDATA[ >= ]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND t.created_at <![CDATA[ <= ]]> #{endTime}
+        </if>
+    </select>
+
+    <select id="selectDistinctCreatedByUsernames" resultType="java.lang.String">
+        SELECT DISTINCT t.created_by_username
+        FROM tw_batch_task t
+        WHERE t.team_id = #{teamId}
+          AND t.finished_at IS NOT NULL
+          AND t.created_by_username IS NOT NULL
+          AND t.created_by_username != ''
+          AND EXISTS (
+                SELECT 1
+                FROM tw_point_change_log p
+                WHERE p.source_type = 'batch_task'
+                  AND p.source_id = t.task_no
+                  AND p.change_type = 'refund'
+          )
+        <if test="keyword != null and keyword != ''">
+            AND t.created_by_username LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY t.created_by_username
+    </select>
 </mapper>

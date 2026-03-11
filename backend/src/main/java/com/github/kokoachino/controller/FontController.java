@@ -18,7 +18,7 @@ import java.util.List;
  * 字体控制器
  *
  * @author Kokoa_Chino
- * @date 2026-02-09
+ * @date 2026-03-09
  */
 @RestController
 @RequestMapping("/api/font")
@@ -30,11 +30,9 @@ public class FontController {
 
     @GetMapping("/list")
     @Operation(summary = "获取可用字体列表", description = "获取系统字体和团队上传的字体，支持按名称模糊查询")
-    public Result<List<FontVO>> getAvailableFonts(
-            @Parameter(description = "字体名称（模糊匹配）") @RequestParam(required = false) String name) {
+    public Result<List<FontVO>> getAvailableFonts(@Parameter(description = "字体名称（模糊匹配）") @RequestParam(required = false) String name) {
         Integer teamId = TeamContext.getTeamId();
-        List<FontVO> list = fontService.getAvailableFonts(teamId, name);
-        return Result.success(list);
+        return Result.success(fontService.getAvailableFonts(teamId, name));
     }
 
     @PostMapping("/upload")
@@ -43,18 +41,19 @@ public class FontController {
             @Parameter(description = "字体名称") @RequestParam String name,
             @Parameter(description = "字体文件(.ttf或.otf)") @RequestParam MultipartFile fontFile) {
         Integer userId = UserContext.getUserId();
+        String username = UserContext.getUser().getUsername();
         Integer teamId = TeamContext.getTeamId();
-        FontVO result = fontService.uploadFont(teamId, userId, name, fontFile);
-        return Result.success(result);
+        return Result.success(fontService.uploadFont(teamId, userId, username, name, fontFile));
     }
 
     @DeleteMapping("/{fontId}")
     @Operation(summary = "删除字体", description = "删除团队上传的字体（仅队长可操作）")
-    public Result<Void> deleteFont(
-            @Parameter(description = "字体ID") @PathVariable Integer fontId) {
+    public Result<Void> deleteFont(@Parameter(description = "字体ID") @PathVariable Integer fontId) {
         Integer teamId = TeamContext.getTeamId();
+        Integer operatorUserId = UserContext.getUserId();
+        String operatorUsername = UserContext.getUser().getUsername();
         boolean isLeader = TeamContext.isLeader();
-        fontService.deleteFont(fontId, teamId, isLeader);
+        fontService.deleteFont(fontId, teamId, operatorUserId, operatorUsername, isLeader);
         return Result.success(null);
     }
 }

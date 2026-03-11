@@ -43,10 +43,16 @@
           <el-menu-item index="/task/create">创建批量任务</el-menu-item>
           <el-menu-item index="/task/execution">批量任务执行</el-menu-item>
         </el-sub-menu>
-        <el-menu-item index="/logs">
-          <el-icon><List /></el-icon>
-          <span>操作日志</span>
-        </el-menu-item>
+        <el-sub-menu index="/logs">
+          <template #title>
+            <el-icon><List /></el-icon>
+            <span>操作日志</span>
+          </template>
+          <el-menu-item index="/logs/team">团队变更</el-menu-item>
+          <el-menu-item index="/logs/watermark">水印资源</el-menu-item>
+          <el-menu-item index="/logs/points">点数流水</el-menu-item>
+          <el-menu-item index="/logs/tasks">任务记录</el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </aside>
     <div class="main-content">
@@ -57,8 +63,8 @@
         <div class="header-right">
           <div class="user-info">
             <span class="username">{{ userStore.userInfo?.username }}</span>
-            <span class="role-badge" :class="teamInfo?.role">
-              {{ teamInfo?.role === 'leader' ? '队长' : '成员' }}
+            <span class="role-badge" :class="teamRoleClass">
+              {{ isLeaderRole ? '队长' : '成员' }}
             </span>
             <span class="points">
               <el-icon><Coin /></el-icon>
@@ -103,10 +109,10 @@
           <div style="display: flex; gap: 8px; width: 100%">
             <el-input v-model="profileForm.code" placeholder="请输入验证码" style="flex: 1" />
             <el-button 
-              :disabled="emailCountdown > 0" 
+              :disabled="emailCodeDisabled" 
               @click="handleSendCode"
             >
-              {{ emailCountdown > 0 ? `${emailCountdown}s` : '发送验证码' }}
+              {{ emailCodeText }}
             </el-button>
           </div>
         </el-form-item>
@@ -227,6 +233,10 @@ const defaultOpeneds = computed(() => {
   return [basePath]
 })
 
+const teamRoleClass = computed(() => teamInfo.value?.role || '')
+const isLeaderRole = computed(() => teamInfo.value?.role === 'leader')
+const emailCodeDisabled = computed(() => emailCountdown.value > 0)
+const emailCodeText = computed(() => emailCountdown.value > 0 ? `${emailCountdown.value}s` : '发送验证码')
 const pageTitle = computed(() => {
   return (route.meta?.title as string) || '首页'
 })

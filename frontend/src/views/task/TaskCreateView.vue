@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="task-create">
     <el-card class="task-card">
       <template #header>
@@ -268,7 +268,7 @@
         <el-form-item label="Excel 文件">
           <div class="excel-file-row">
             <el-button @click="triggerExcelFileSelect">选择文件</el-button>
-            <span class="excel-file-name">{{ excelImportFile?.name || '未选择文件' }}</span>
+            <span class="excel-file-name">{{ excelImportFileName }}</span>
           </div>
         </el-form-item>
 
@@ -451,6 +451,7 @@ const workbenchRef = ref<HTMLElement | null>(null)
 const excelImportOptions = reactive({ ...defaultExcelImportOptions })
 
 const commonImageExtensions = [...SUPPORTED_IMAGE_EXTENSIONS]
+const excelImportFileName = computed(() => excelImportFile.value?.name || '未选择文件')
 const templateWatermarks = computed(() => selectedTemplate.value?.config.watermarks || [])
 const displayedTaskImages = computed(() => {
   if (!dragPreviewIds.value) {
@@ -1070,9 +1071,16 @@ async function startTask() {
   startingTask.value = true
 
   try {
-    const submissionDescription = `${selectedTemplate.value.name}\uFF08${taskImages.value.length}\u5F20\uFF09`
+    const submissionDescription = `${selectedTemplate.value.name} (${taskImages.value.length})`
+    const totalSize = taskImages.value.reduce((sum, item) => sum + item.size, 0)
+    const templateSnapshot = JSON.parse(JSON.stringify(selectedTemplate.value)) as WatermarkTemplateVO
     const response = await submitBatchTask({
-      imageCount: taskImages.value.length,
+      totalCount: taskImages.value.length,
+      totalSize,
+      templateId: selectedTemplate.value.id,
+      templateName: selectedTemplate.value.name,
+      templateVersion: selectedTemplate.value.version,
+      templateSnapshot,
       description: submissionDescription
     })
 

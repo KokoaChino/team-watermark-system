@@ -1,16 +1,19 @@
 package com.github.kokoachino.model.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import java.time.LocalDateTime;
 
 
 /**
- * 批量任务实体（简化版）
- * 只记录点数相关信息，不维护任务状态
+ * 批量任务实体
  *
  * @author Kokoa_Chino
- * @date 2026-02-10
+ * @date 2026-03-09
  */
 @Data
 @TableName("tw_batch_task")
@@ -19,65 +22,25 @@ public class BatchTask {
     @TableId(type = IdType.AUTO)
     private Integer id;
 
-    /**
-     * 任务编号
-     */
     private String taskNo;
-
-    /**
-     * 团队ID
-     */
     private Integer teamId;
-
-    /**
-     * 创建人ID
-     */
     private Integer createdById;
-
-    /**
-     * 任务描述
-     */
+    private String createdByUsername;
+    private String userStatus;
+    private Integer templateId;
+    private String templateName;
+    private Integer templateVersion;
+    private String templateSnapshot;
     private String description;
-
-    /**
-     * 图片总数
-     */
-    private Integer imageCount;
-
-    /**
-     * 成功处理数量
-     */
+    private Integer totalCount;
     private Integer successCount;
-
-    /**
-     * 预扣点数
-     */
-    private Integer deductedPoints;
-
-    /**
-     * 实际消耗点数
-     */
-    private Integer consumedPoints;
-
-    /**
-     * 返还点数
-     */
-    private Integer refundedPoints;
-
-    /**
-     * 结果 ZIP 文件的 MinIO Key
-     */
+    private Integer failedCount;
+    private Long totalDurationMs;
+    private Long totalSize;
     private String resultZipKey;
-
-    /**
-     * 处理报表（JSON格式）
-     */
     private String report;
-
-    /**
-     * 完成时间
-     */
-    private LocalDateTime completedAt;
+    private LocalDateTime startedAt;
+    private LocalDateTime finishedAt;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

@@ -1,8 +1,13 @@
-﻿import request from '@/utils/request'
-import type { ResultDTO, BatchTaskVO } from '@/types'
+import request from '@/utils/request'
+import type { ResultDTO, BatchTaskVO, WatermarkTemplateVO } from '@/types'
 
 export interface SubmitBatchTaskDTO {
-  imageCount: number
+  totalCount: number
+  totalSize: number
+  templateId: number
+  templateName: string
+  templateVersion: number
+  templateSnapshot: WatermarkTemplateVO
   description?: string
 }
 

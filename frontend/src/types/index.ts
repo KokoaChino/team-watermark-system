@@ -1,4 +1,4 @@
-﻿export interface ResultDTO<T = unknown> {
+export interface ResultDTO<T = unknown> {
   code: number
   message: string
   data: T
@@ -180,7 +180,9 @@ export interface PaymentOrderVO {
 export interface BatchTaskVO {
   id: number
   taskNo: string
-  deductedPoints: number
+  totalCount: number
+  templateId: number
+  templateName: string
   createdAt: string
 }
 
@@ -315,17 +317,51 @@ export interface BatchTaskExecutionReport {
   items: BatchTaskExecutionReportItem[]
 }
 
-export interface OperationLogVO {
+export interface LogQueryBase {
+  page: number
+  size: number
+  operatorKeyword?: string
+  startTime?: string
+  endTime?: string
+}
+
+export interface TeamEventLogQueryDTO extends LogQueryBase {
+  eventType?: string
+  affectedKeyword?: string
+  inviteCode?: string
+}
+
+export interface WatermarkResourceLogQueryDTO extends LogQueryBase {
+  eventType?: string
+  resourceScope?: string
+  resourceName?: string
+}
+
+export interface PointChangeLogQueryDTO extends LogQueryBase {
+  changeType?: string
+  sourceType?: string
+  sourceId?: string
+}
+
+export interface TaskLogQueryDTO extends LogQueryBase {
+  templateName?: string
+  taskNo?: string
+}
+
+export interface TeamEventLogVO {
   id: number
   eventType: string
   eventTypeDesc: string
-  category: string
-  teamId: number
-  userId: number
-  username: string
-  userStatus: string
-  targetId?: number
-  targetName?: string
+  operatorUserId?: number
+  operatorUsername?: string
+  operatorUserStatus?: string
+  operatorUserStatusDesc?: string
+  affectedUserId?: number
+  affectedUsername?: string
+  affectedUserStatus?: string
+  affectedUserStatusDesc?: string
+  inviteCodeId?: number
+  inviteCode?: string
   beforeData?: string
   afterData?: string
   details?: string
@@ -333,6 +369,72 @@ export interface OperationLogVO {
   createdAt: string
 }
 
+export interface WatermarkResourceLogVO {
+  id: number
+  resourceScope: string
+  resourceScopeDesc: string
+  eventType: string
+  eventTypeDesc: string
+  operatorUserId?: number
+  operatorUsername?: string
+  operatorUserStatus?: string
+  operatorUserStatusDesc?: string
+  resourceId?: number
+  resourceName?: string
+  beforeData?: string
+  afterData?: string
+  details?: string
+  ipAddress?: string
+  createdAt: string
+}
+
+export interface PointChangeLogVO {
+  id: number
+  changeType: string
+  changeTypeDesc: string
+  operatorUserId?: number
+  operatorUsername?: string
+  operatorUserStatus?: string
+  operatorUserStatusDesc?: string
+  sourceType?: string
+  sourceTypeDesc?: string
+  sourceId?: string
+  points: number
+  balanceBefore: number
+  balanceAfter: number
+  description?: string
+  ipAddress?: string
+  createdAt: string
+}
+
+export interface TaskLogVO {
+  id: number
+  taskNo: string
+  createdById: number
+  createdByUsername: string
+  userStatus?: string
+  userStatusDesc?: string
+  templateId: number
+  templateName: string
+  templateVersion: number
+  templateSnapshot?: string
+  totalCount: number
+  successCount: number
+  failedCount: number
+  totalDurationMs: number
+  totalSize: number
+  description?: string
+  resultZipKey?: string
+  report?: string
+  deductedPoints: number
+  consumedPoints: number
+  refundedPoints: number
+  status: string
+  statusDesc: string
+  startedAt?: string
+  finishedAt?: string
+  createdAt: string
+}
 export interface FontVO {
   id: number
   name: string

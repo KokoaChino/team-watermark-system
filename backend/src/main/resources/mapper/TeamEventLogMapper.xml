@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.kokoachino.mapper.TeamEventLogMapper">
+
+    <select id="selectByConditions" resultType="com.github.kokoachino.model.entity.TeamEventLog">
+        SELECT * FROM tw_team_event_log
+        WHERE team_id = #{teamId}
+        <if test="eventType != null and eventType != ''">
+            AND event_type = #{eventType}
+        </if>
+        <if test="operatorKeyword != null and operatorKeyword != ''">
+            AND operator_username LIKE CONCAT('%', #{operatorKeyword}, '%')
+        </if>
+        <if test="affectedKeyword != null and affectedKeyword != ''">
+            AND affected_username LIKE CONCAT('%', #{affectedKeyword}, '%')
+        </if>
+        <if test="inviteCode != null and inviteCode != ''">
+            AND invite_code LIKE CONCAT('%', #{inviteCode}, '%')
+        </if>
+        <if test="startTime != null">
+            AND created_at <![CDATA[ >= ]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at <![CDATA[ <= ]]> #{endTime}
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByConditions" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tw_team_event_log
+        WHERE team_id = #{teamId}
+        <if test="eventType != null and eventType != ''">
+            AND event_type = #{eventType}
+        </if>
+        <if test="operatorKeyword != null and operatorKeyword != ''">
+            AND operator_username LIKE CONCAT('%', #{operatorKeyword}, '%')
+        </if>
+        <if test="affectedKeyword != null and affectedKeyword != ''">
+            AND affected_username LIKE CONCAT('%', #{affectedKeyword}, '%')
+        </if>
+        <if test="inviteCode != null and inviteCode != ''">
+            AND invite_code LIKE CONCAT('%', #{inviteCode}, '%')
+        </if>
+        <if test="startTime != null">
+            AND created_at <![CDATA[ >= ]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at <![CDATA[ <= ]]> #{endTime}
+        </if>
+    </select>
+
+    <select id="selectDistinctOperatorUsernames" resultType="java.lang.String">
+        SELECT DISTINCT operator_username
+        FROM tw_team_event_log
+        WHERE team_id = #{teamId}
+          AND operator_username IS NOT NULL
+          AND operator_username != ''
+        <if test="keyword != null and keyword != ''">
+            AND operator_username LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY operator_username
+    </select>
+
+    <select id="selectDistinctAffectedUsernames" resultType="java.lang.String">
+        SELECT DISTINCT affected_username
+        FROM tw_team_event_log
+        WHERE team_id = #{teamId}
+          AND affected_username IS NOT NULL
+          AND affected_username != ''
+        <if test="keyword != null and keyword != ''">
+            AND affected_username LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY affected_username
+    </select>
+
+    <select id="selectInviteRecordsByInviteCodeId" resultType="com.github.kokoachino.model.entity.TeamEventLog">
+        SELECT * FROM tw_team_event_log
+        WHERE team_id = #{teamId}
+          AND event_type = 'member_join'
+          AND invite_code_id = #{inviteCodeId}
+        ORDER BY created_at DESC
+    </select>
+</mapper>
