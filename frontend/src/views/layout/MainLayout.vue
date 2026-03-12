@@ -123,23 +123,98 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showPaymentDialog" title="点数充值" width="400px" @close="handlePaymentDialogClose">
-      <div class="balance-info">
-        <span class="label">当前团队点数：</span>
-        <span class="value">{{ teamInfo?.pointBalance || 0 }}</span>
+    <el-dialog
+      v-model="showPaymentDialog"
+      title="点数充值（支付宝沙箱）"
+      width="560px"
+      :close-on-click-modal="false"
+      @close="handlePaymentDialogClose"
+    >
+      <div class="payment-dialog">
+        <el-steps :active="paymentStepIndex" finish-status="success" simple>
+          <el-step title="确认订单" />
+          <el-step title="扫码支付" />
+          <el-step title="充值成功" />
+        </el-steps>
+
+        <div v-if="paymentStep === 'confirm'" class="payment-stage confirm-stage">
+          <div class="balance-grid">
+            <div class="balance-card">
+              <span class="label">当前点数</span>
+              <span class="value">{{ currentBalance }}</span>
+            </div>
+            <div class="balance-card">
+              <span class="label">充值点数</span>
+              <span class="value">{{ paymentForm.points }}</span>
+            </div>
+            <div class="balance-card">
+              <span class="label">应付金额</span>
+              <span class="value amount">¥{{ paymentAmount }}</span>
+            </div>
+            <div class="balance-card">
+              <span class="label">充值后预计点数</span>
+              <span class="value success">{{ expectedBalance }}</span>
+            </div>
+          </div>
+          <el-form label-width="90px">
+            <el-form-item label="充值点数">
+              <el-input-number v-model="paymentForm.points" :min="1" :max="1000000" />
+            </el-form-item>
+            <el-form-item label="计费规则">
+              <span>1 点数 = 1 分钱（¥0.01）</span>
+            </el-form-item>
+          </el-form>
+          <el-alert class="sandbox-alert sandbox-alert-compact" type="warning" :closable="false" show-icon>
+            <template #title>当前为支付宝沙箱环境，仅供学习与测试，不会发生真实资金交易</template>
+            <div class="sandbox-links">
+              <a :href="alipaySandboxDocUrl" target="_blank" rel="noopener">支付宝沙箱文档</a>
+              <a :href="alipaySandboxAppUrl" target="_blank" rel="noopener">沙箱版 App 下载说明</a>
+            </div>
+          </el-alert>
+        </div>
+
+        <div v-else-if="paymentStep === 'qrcode'" class="payment-stage qrcode-stage">
+          <div class="qrcode-box">
+            <img
+              v-if="currentPaymentOrder?.qrCodeBase64"
+              :src="currentPaymentOrder.qrCodeBase64"
+              alt="支付宝沙箱支付二维码"
+            />
+            <el-skeleton v-else animated :rows="6" />
+          </div>
+          <div class="qrcode-meta">
+            <div>订单号：{{ currentPaymentOrder?.orderNo || '-' }}</div>
+            <div>支付金额：¥{{ currentPaymentOrder ? formatOrderAmount(currentPaymentOrder.amount) : paymentAmount }}</div>
+            <div>状态：{{ paymentStatusText }}</div>
+          </div>
+          <el-alert class="sandbox-alert" type="info" :closable="false" show-icon>
+            <template #title>请使用支付宝沙箱版 App 扫码，支付完成后本页面会自动刷新状态</template>
+          </el-alert>
+        </div>
+
+        <div v-else class="payment-stage success-stage">
+          <div class="success-visual">
+            <div class="success-ring">
+              <el-icon><Check /></el-icon>
+            </div>
+          </div>
+          <h4 class="success-title">充值成功</h4>
+          <p class="success-desc">团队点数已到账，可以继续使用批量处理功能</p>
+          <div class="success-balance">{{ animatedBalance }} 点</div>
+        </div>
       </div>
-      <el-divider />
-      <el-form label-width="80px">
-        <el-form-item label="充值点数">
-          <el-input-number v-model="paymentForm.points" :min="1" :max="10000" />
-        </el-form-item>
-        <el-form-item label="应付金额">
-          <span class="amount">¥{{ (paymentForm.points * 0.01).toFixed(2) }}</span>
-        </el-form-item>
-      </el-form>
       <template #footer>
-        <el-button @click="showPaymentDialog = false">取消</el-button>
-        <el-button type="primary" :loading="paymentLoading" @click="handlePayment">立即充值</el-button>
+        <template v-if="paymentStep === 'confirm'">
+          <el-button @click="showPaymentDialog = false">取消</el-button>
+          <el-button type="primary" :loading="paymentLoading" @click="handlePayment">继续充值</el-button>
+        </template>
+        <template v-else-if="paymentStep === 'qrcode'">
+          <el-button @click="showPaymentDialog = false">取消支付</el-button>
+          <el-button type="primary" :loading="paymentManualQuerying" @click="handleManualPaymentRefresh">我已支付，立即刷新</el-button>
+        </template>
+        <template v-else>
+          <el-button type="primary" @click="showPaymentDialog = false">完成</el-button>
+        </template>
       </template>
     </el-dialog>
 
@@ -158,16 +233,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, watch, reactive } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, provide, watch, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getTeamInfo } from '@/api/team'
 import { updateProfile } from '@/api/user'
 import { sendCode } from '@/api/auth'
-import { logout as logoutApi, unregister as unregisterApi } from '@/api/auth'
-import { createPaymentOrder } from '@/api/payment'
-import type { TeamMemberVO } from '@/types'
+import { unregister as unregisterApi } from '@/api/auth'
+import { createPaymentOrder, queryPaymentOrder } from '@/api/payment'
+import { OPEN_RECHARGE_DIALOG_KEY, TEAM_POINTS_UPDATED_EVENT } from '@/constants/payment'
+import type { PaymentOrderVO, TeamMemberVO } from '@/types'
 import {
   House,
   UserFilled,
@@ -175,7 +251,8 @@ import {
   Files,
   Coin,
   List,
-  Setting
+  Setting,
+  Check
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -221,6 +298,23 @@ const profileRules: FormRules = {
 const paymentForm = reactive({
   points: 100
 })
+type PaymentStep = 'confirm' | 'qrcode' | 'success'
+
+const PAYMENT_POLL_INTERVAL_MS = 2000
+const PAYMENT_POLL_TIMEOUT_MS = 5 * 60 * 1000
+const POINT_PRICE = 0.01
+const alipaySandboxDocUrl = 'https://open.alipay.com/develop/sandbox/app'
+const alipaySandboxAppUrl = 'https://open.alipay.com/develop/sandbox/tool/alipayclint'
+
+const paymentStep = ref<PaymentStep>('confirm')
+const paymentQuerying = ref(false)
+const paymentManualQuerying = ref(false)
+const paymentStatusText = ref('等待扫码支付')
+const currentPaymentOrder = ref<PaymentOrderVO | null>(null)
+const paymentPollTimer = ref<number | null>(null)
+const paymentDeadline = ref<number>(0)
+const animatedBalance = ref<number>(0)
+const balanceAnimationFrameId = ref<number | null>(null)
 
 const activeMenu = computed(() => {
   return route.path
@@ -237,6 +331,18 @@ const teamRoleClass = computed(() => teamInfo.value?.role || '')
 const isLeaderRole = computed(() => teamInfo.value?.role === 'leader')
 const emailCodeDisabled = computed(() => emailCountdown.value > 0)
 const emailCodeText = computed(() => emailCountdown.value > 0 ? `${emailCountdown.value}s` : '发送验证码')
+const paymentStepIndex = computed(() => {
+  if (paymentStep.value === 'qrcode') {
+    return 1
+  }
+  if (paymentStep.value === 'success') {
+    return 3
+  }
+  return 0
+})
+const currentBalance = computed(() => teamInfo.value?.pointBalance || 0)
+const expectedBalance = computed(() => currentBalance.value + paymentForm.points)
+const paymentAmount = computed(() => (paymentForm.points * POINT_PRICE).toFixed(2))
 const pageTitle = computed(() => {
   const title = route.meta?.title as string | undefined
   const parentTitle = route.meta?.parentTitle as string | undefined
@@ -271,6 +377,7 @@ async function fetchTeamInfo() {
     const res = await getTeamInfo()
     if (res.code === 200) {
       teamInfo.value = res.data
+      userStore.setTeamInfo(res.data)
     }
   } catch (error) {
     console.error('获取团队信息失败:', error)
@@ -306,7 +413,13 @@ function handleProfileDialogClose() {
 }
 
 function handlePaymentDialogClose() {
+  stopPaymentPolling()
+  stopBalanceAnimation()
   paymentForm.points = 100
+  paymentStep.value = 'confirm'
+  paymentStatusText.value = '等待扫码支付'
+  currentPaymentOrder.value = null
+  animatedBalance.value = currentBalance.value
 }
 
 async function handleSaveProfile() {
@@ -383,16 +496,130 @@ async function handleSendCode() {
 }
 
 async function handlePayment() {
+  if (paymentStep.value !== 'confirm') {
+    return
+  }
+  paymentStatusText.value = '正在创建支付订单...'
   paymentLoading.value = true
   try {
     const res = await createPaymentOrder({ points: paymentForm.points })
     if (res.code === 200) {
-      ElMessage.success('订单创建成功，二维码生成中...')
+      currentPaymentOrder.value = res.data
+      paymentStep.value = 'qrcode'
+      paymentStatusText.value = '请使用支付宝沙箱 App 扫码支付'
+      paymentDeadline.value = Date.now() + PAYMENT_POLL_TIMEOUT_MS
+      ElMessage.success('订单创建成功，请扫码支付')
+      await pollPaymentStatus()
+      stopPaymentPolling()
+      paymentPollTimer.value = window.setInterval(() => {
+        void pollPaymentStatus()
+      }, PAYMENT_POLL_INTERVAL_MS)
     }
   } catch (error) {
+    paymentStatusText.value = '订单创建失败，请重试'
     console.error('创建订单失败:', error)
   } finally {
     paymentLoading.value = false
+  }
+}
+
+function stopPaymentPolling() {
+  if (paymentPollTimer.value !== null) {
+    window.clearInterval(paymentPollTimer.value)
+    paymentPollTimer.value = null
+  }
+  paymentQuerying.value = false
+  paymentManualQuerying.value = false
+}
+
+function stopBalanceAnimation() {
+  if (balanceAnimationFrameId.value !== null) {
+    cancelAnimationFrame(balanceAnimationFrameId.value)
+    balanceAnimationFrameId.value = null
+  }
+}
+
+function animateBalance(from: number, to: number, durationMs = 900) {
+  stopBalanceAnimation()
+  if (from === to) {
+    animatedBalance.value = to
+    return
+  }
+  const start = performance.now()
+  const delta = to - from
+  const tick = (timestamp: number) => {
+    const progress = Math.min(1, (timestamp - start) / durationMs)
+    animatedBalance.value = Math.round(from + delta * progress)
+    if (progress < 1) {
+      balanceAnimationFrameId.value = requestAnimationFrame(tick)
+    } else {
+      balanceAnimationFrameId.value = null
+    }
+  }
+  balanceAnimationFrameId.value = requestAnimationFrame(tick)
+}
+
+function formatOrderAmount(amount: number | string | undefined) {
+  const amountNumber = Number(amount)
+  if (Number.isFinite(amountNumber)) {
+    return amountNumber.toFixed(2)
+  }
+  return paymentAmount.value
+}
+
+async function handlePaymentSuccess() {
+  const beforeBalance = currentBalance.value
+  stopPaymentPolling()
+  paymentStep.value = 'success'
+  paymentStatusText.value = '支付成功'
+  await fetchTeamInfo()
+  const afterBalance = teamInfo.value?.pointBalance ?? beforeBalance
+  animatedBalance.value = beforeBalance
+  animateBalance(beforeBalance, afterBalance)
+  window.dispatchEvent(new Event(TEAM_POINTS_UPDATED_EVENT))
+}
+
+async function handleManualPaymentRefresh() {
+  await pollPaymentStatus(true)
+}
+
+async function pollPaymentStatus(forceSync = false) {
+  if (paymentStep.value !== 'qrcode' || !currentPaymentOrder.value) {
+    return
+  }
+  if (paymentQuerying.value) {
+    return
+  }
+  if (Date.now() >= paymentDeadline.value) {
+    stopPaymentPolling()
+    paymentStatusText.value = '支付等待超时，请重新下单'
+    ElMessage.warning('支付等待超时，请重新发起充值')
+    return
+  }
+  paymentQuerying.value = true
+  if (forceSync) {
+    paymentManualQuerying.value = true
+  }
+  try {
+    const res = await queryPaymentOrder(currentPaymentOrder.value.orderNo, forceSync)
+    if (res.code === 200) {
+      currentPaymentOrder.value = {
+        ...res.data,
+        qrCodeBase64: currentPaymentOrder.value.qrCodeBase64 || res.data.qrCodeBase64
+      }
+      if (res.data.status === 'paid') {
+        await handlePaymentSuccess()
+      } else {
+        paymentStatusText.value = '等待扫码支付'
+      }
+    }
+  } catch (error) {
+    console.error('查询支付状态失败:', error)
+  } finally {
+    paymentQuerying.value = false
+    if (forceSync) {
+      paymentManualQuerying.value = false
+    }
   }
 }
 
@@ -422,22 +649,28 @@ async function handleUnregister() {
 }
 
 function openPaymentDialog() {
+  handlePaymentDialogClose()
   showPaymentDialog.value = true
 }
 
-defineExpose({ openPaymentDialog })
+provide(OPEN_RECHARGE_DIALOG_KEY, openPaymentDialog)
 
 onMounted(() => {
-  fetchTeamInfo()
+  void fetchTeamInfo()
   nextTick(() => {
     sidebarMenuRef.value?.updateActiveIndex(route.path)
   })
 })
 
+onBeforeUnmount(() => {
+  stopPaymentPolling()
+  stopBalanceAnimation()
+})
+
 watch(
   () => route.path,
   () => {
-    fetchTeamInfo()
+    void fetchTeamInfo()
     nextTick(() => {
       sidebarMenuRef.value?.updateActiveIndex(route.path)
     })
@@ -585,28 +818,200 @@ watch(
   opacity: 0;
 }
 
-.balance-info {
-  font-size: 15px;
+.payment-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 4px;
+}
+
+.payment-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.balance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-light);
+  background: linear-gradient(135deg, #f9fbff, #ffffff);
 
   .label {
+    font-size: 12px;
     color: var(--color-text-secondary);
   }
 
   .value {
     font-size: 20px;
     font-weight: 600;
-    color: #e6a23c;
+    color: #303133;
+  }
+
+  .value.amount {
+    color: #f56c6c;
+  }
+
+  .value.success {
+    color: #67c23a;
   }
 }
 
-.amount {
-  font-size: 20px;
-  font-weight: 600;
-  color: #f56c6c;
+.sandbox-alert {
+  margin-top: 4px;
+}
+
+.sandbox-alert-compact {
+  :deep(.el-alert__title) {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
+
+.sandbox-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+
+  a {
+    color: var(--color-primary);
+    font-size: 13px;
+    font-weight: 500;
+  }
+}
+
+.qrcode-stage {
+  text-align: center;
+}
+
+.qrcode-box {
+  width: 260px;
+  min-height: 260px;
+  margin: 0 auto;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-light);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-light);
+
+  img {
+    width: 240px;
+    height: 240px;
+    object-fit: contain;
+  }
+}
+
+.qrcode-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--color-text-regular);
+  font-size: 13px;
+}
+
+.success-stage {
+  align-items: center;
+  text-align: center;
+  padding: 8px 0;
+}
+
+.success-visual {
+  width: 88px;
+  height: 88px;
+}
+
+.success-ring {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: radial-gradient(circle at 30% 30%, #7fd67f, #53b953);
+  box-shadow: 0 0 0 0 rgba(103, 194, 58, 0.3);
+  animation: success-pop 0.45s ease-out, success-pulse 1.8s ease-in-out infinite 0.45s;
+
+  :deep(svg) {
+    font-size: 42px;
+    font-weight: 700;
+  }
+}
+
+.success-title {
+  font-size: 22px;
+  color: #2f9c2f;
+}
+
+.success-desc {
+  color: var(--color-text-regular);
+}
+
+.success-balance {
+  font-size: 30px;
+  font-weight: 700;
+  color: #2f9c2f;
+}
+
+@keyframes success-pop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+
+  70% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes success-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(103, 194, 58, 0.35);
+  }
+
+  70% {
+    box-shadow: 0 0 0 16px rgba(103, 194, 58, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(103, 194, 58, 0);
+  }
+}
+
+@media (max-width: 768px) {
+  .balance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .qrcode-box {
+    width: 220px;
+    min-height: 220px;
+
+    img {
+      width: 200px;
+      height: 200px;
+    }
+  }
 }
 
 .unregister-tip {
   padding: 8px 0;
 }
 </style>
-

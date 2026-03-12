@@ -164,7 +164,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, inject, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -176,10 +176,12 @@ import {
   leaveTeam,
   joinTeam
 } from '@/api/team'
+import { OPEN_RECHARGE_DIALOG_KEY, TEAM_POINTS_UPDATED_EVENT } from '@/constants/payment'
 import type { TeamMemberVO, UserVO } from '@/types'
 
 const router = useRouter()
 const userStore = useUserStore()
+const openRechargeDialog = inject(OPEN_RECHARGE_DIALOG_KEY, null)
 
 const teamInfo = ref<TeamMemberVO | null>(null)
 const showEditNameDialog = ref(false)
@@ -323,17 +325,24 @@ async function handleJoinTeam() {
 }
 
 function handleRecharge() {
-  const layout = document.querySelector('.main-layout')
-  if (layout) {
-    const openPaymentDialog = (layout as any).__vueParentComponent?.exposed?.openPaymentDialog
-    if (openPaymentDialog) {
-      openPaymentDialog()
-    }
+  if (!openRechargeDialog) {
+    ElMessage.warning('充值弹窗尚未就绪，请刷新页面后重试')
+    return
   }
+  openRechargeDialog()
+}
+
+function handleTeamPointsUpdated() {
+  void fetchTeamInfo()
 }
 
 onMounted(() => {
-  fetchTeamInfo()
+  void fetchTeamInfo()
+  window.addEventListener(TEAM_POINTS_UPDATED_EVENT, handleTeamPointsUpdated)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener(TEAM_POINTS_UPDATED_EVENT, handleTeamPointsUpdated)
 })
 </script>
 

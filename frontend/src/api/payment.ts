@@ -9,6 +9,8 @@ export function createPaymentOrder(data: CreatePaymentOrderDTO) {
   return request.post<never, ResultDTO<PaymentOrderVO>>('/api/payment/create', data)
 }
 
-export function queryPaymentOrder(orderNo: string) {
-  return request.get<never, ResultDTO<PaymentOrderVO>>(`/api/payment/query/${orderNo}`)
+export function queryPaymentOrder(orderNo: string, forceSync = false) {
+  return request.get<never, ResultDTO<PaymentOrderVO>>(`/api/payment/query/${orderNo}`, {
+    params: { forceSync }
+  })
 }

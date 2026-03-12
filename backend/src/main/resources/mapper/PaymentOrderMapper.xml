@@ -7,4 +7,15 @@
         SELECT * FROM tw_payment_order WHERE order_no = #{orderNo}
     </select>
 
+    <!-- 原子更新订单状态，避免并发情况下重复入账 -->
+    <update id="markPaidIfPending">
+        UPDATE tw_payment_order
+        SET status = 'paid',
+            alipay_trade_no = #{alipayTradeNo},
+            paid_at = #{paidAt},
+            updated_at = NOW()
+        WHERE order_no = #{orderNo}
+          AND status = 'pending'
+    </update>
+
 </mapper>

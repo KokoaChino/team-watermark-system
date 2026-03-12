@@ -34,7 +34,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/auth/send-code",
                         "/api/auth/captcha",
                         "/api/auth/forgot-password",
-                        "/api/enums/**"
+                        "/api/enums/**",
+                        "/api/payment/alipay/notify",
+                        "/api/payment/alipay/**"
                 );
     }
 
