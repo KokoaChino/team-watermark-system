@@ -3,7 +3,12 @@
     <el-card>
       <template #header>
         <div class="card-header page-card-header">
-          <h3 class="page-card-title">字体管理</h3>
+          <div class="header-left">
+            <h3 class="page-card-title">字体管理</h3>
+            <el-tag type="info" size="small" class="count-tag">
+              共 {{ displayFonts.length }} 个
+            </el-tag>
+          </div>
           <el-button type="primary" @click="handleOpenUpload">
             上传字体
           </el-button>
@@ -136,6 +141,11 @@ import { getTeamInfo } from '@/api/team'
 import type { FontVO } from '@/types'
 
 const systemFonts = [
+  { name: 'Microsoft YaHei', alias: '微软雅黑', category: 'chinese' },
+  { name: 'SimHei', alias: '黑体', category: 'chinese' },
+  { name: 'SimSun', alias: '宋体', category: 'chinese' },
+  { name: 'NSimSun', alias: '新宋体', category: 'chinese' },
+  { name: 'DengXian', alias: '等线', category: 'chinese' },
   { name: 'KaiTi', alias: '楷体', category: 'chinese' },
   { name: 'FangSong', alias: '仿宋', category: 'chinese' },
   { name: 'YouYuan', alias: '幼圆', category: 'chinese' },
@@ -147,10 +157,18 @@ const systemFonts = [
   { name: 'STCaiyun', alias: '华文彩云', category: 'chinese' },
   { name: 'STHupo', alias: '华文琥珀', category: 'chinese' },
   { name: 'Alibaba PuHuiTi', alias: '阿里巴巴普惠体', category: 'chinese' },
-  { name: 'MiSans', alias: '小米MiSans', category: 'chinese' },
-  { name: 'HarmonyOS Sans', alias: '华为鸿蒙体', category: 'chinese' },
   { name: 'Noto Sans SC', alias: 'Noto思源黑体', category: 'chinese' },
   { name: 'Noto Serif SC', alias: 'Noto思源宋体', category: 'chinese' },
+  { name: 'Arial', alias: 'Arial', category: 'latin' },
+  { name: 'Times New Roman', alias: 'Times New Roman', category: 'latin' },
+  { name: 'Calibri', alias: 'Calibri', category: 'latin' },
+  { name: 'Cambria', alias: 'Cambria', category: 'latin' },
+  { name: 'Segoe UI', alias: 'Segoe UI', category: 'latin' },
+  { name: 'Tahoma', alias: 'Tahoma', category: 'latin' },
+  { name: 'Verdana', alias: 'Verdana', category: 'latin' },
+  { name: 'Georgia', alias: 'Georgia', category: 'latin' },
+  { name: 'Courier New', alias: 'Courier New', category: 'latin' },
+  { name: 'Consolas', alias: 'Consolas', category: 'latin' },
 ]
 
 const userStore = useUserStore()
@@ -200,7 +218,6 @@ const displayFonts = computed(() => {
       isSystemFont: true,
       createdAt: ''
     } as FontVO))
-    .sort((a, b) => a.name.localeCompare(b.name))
   
   if (filterType.value === 'system') {
     return systemFontVOs
@@ -455,6 +472,16 @@ watch(filterType, (newVal) => {
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .count-tag {
+      font-weight: normal;
+    }
   }
 
   .filter-bar {
