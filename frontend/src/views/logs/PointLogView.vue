@@ -23,6 +23,7 @@
           <el-select v-model="filters.sourceType" clearable placeholder="业务来源" style="width: 160px">
             <el-option label="支付订单" value="payment" />
             <el-option label="批量任务" value="batch_task" />
+            <el-option label="团队迁移" value="team_transfer" />
           </el-select>
           <el-input
             v-model="filters.sourceId"

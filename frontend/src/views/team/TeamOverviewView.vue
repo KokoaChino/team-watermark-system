@@ -79,9 +79,9 @@
               <template #default="{ row }">
                 <template v-if="row.id === userStore.userInfo?.id">
                   <el-button
-                    v-if="!isLeader"
                     type="warning"
                     size="small"
+                    :disabled="isSingleMemberTeam"
                     @click="handleLeaveTeam"
                   >
                     退出团队
@@ -139,6 +139,7 @@
       v-model="showJoinTeamDialog"
       title="加入团队"
       width="450px"
+      @close="handleJoinTeamDialogClose"
     >
       <el-form :model="joinForm" label-width="100px">
         <el-form-item label="邀请码文本">
@@ -149,9 +150,9 @@
             placeholder="请粘贴邀请码文本，支持【】包装的邀请码"
           />
         </el-form-item>
-        <el-form-item label="转移点数">
+        <el-form-item v-if="showTransferPointsOption" label="转移余额">
           <el-checkbox v-model="joinForm.transferPoints">
-            退出原团队时，将剩余点数转移到新团队
+            加入新团队时，将原团队余额转移到新团队
           </el-checkbox>
         </el-form-item>
       </el-form>
@@ -176,7 +177,7 @@ import {
   leaveTeam,
   joinTeam
 } from '@/api/team'
-import { OPEN_RECHARGE_DIALOG_KEY, TEAM_POINTS_UPDATED_EVENT } from '@/constants/payment'
+import { OPEN_RECHARGE_DIALOG_KEY, TEAM_INFO_UPDATED_EVENT, TEAM_POINTS_UPDATED_EVENT } from '@/constants/payment'
 import type { TeamMemberVO, UserVO } from '@/types'
 
 const router = useRouter()
@@ -193,10 +194,12 @@ const editNameForm = ref({
 })
 const joinForm = ref({
   inviteCodeText: '',
-  transferPoints: true
+  transferPoints: false
 })
 
 const isLeader = computed(() => teamInfo.value?.role === 'leader')
+const isSingleMemberTeam = computed(() => (teamInfo.value?.members?.length || 0) === 1)
+const showTransferPointsOption = computed(() => isSingleMemberTeam.value)
 
 function formatDate(dateStr: string | undefined) {
   if (!dateStr) return '-'
@@ -208,10 +211,15 @@ async function fetchTeamInfo() {
     const res = await getTeamInfo()
     if (res.code === 200) {
       teamInfo.value = res.data
+      userStore.setTeamInfo(res.data)
     }
   } catch (error) {
     console.error('获取团队信息失败:', error)
   }
+}
+
+function notifyTeamInfoUpdated() {
+  window.dispatchEvent(new Event(TEAM_INFO_UPDATED_EVENT))
 }
 
 async function handleUpdateName() {
@@ -226,6 +234,8 @@ async function handleUpdateName() {
       ElMessage.success('团队名称已更新')
       showEditNameDialog.value = false
       teamInfo.value = res.data
+      userStore.setTeamInfo(res.data)
+      notifyTeamInfoUpdated()
     }
   } catch (error) {
     console.error('更新团队名称失败:', error)
@@ -247,7 +257,8 @@ async function handleKick(member: UserVO) {
     )
     await kickMember({ userId: member.id })
     ElMessage.success('已踢出成员')
-    fetchTeamInfo()
+    await fetchTeamInfo()
+    notifyTeamInfoUpdated()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('踢出成员失败:', error)
@@ -268,10 +279,8 @@ async function handleTransferLeader(member: UserVO) {
     )
     await transferLeader({ newLeaderId: member.id })
     ElMessage.success('已转让队长身份')
-    fetchTeamInfo()
-    setTimeout(() => {
-      router.go(0)
-    }, 500)
+    await fetchTeamInfo()
+    notifyTeamInfoUpdated()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('转让队长失败:', error)
@@ -280,6 +289,10 @@ async function handleTransferLeader(member: UserVO) {
 }
 
 async function handleLeaveTeam() {
+  if (isSingleMemberTeam.value) {
+    ElMessage.warning('当前团队仅有你一人，不能退出团队')
+    return
+  }
   try {
     await ElMessageBox.confirm(
       '确定要退出当前团队吗？退出后将自动创建个人团队',
@@ -292,7 +305,8 @@ async function handleLeaveTeam() {
     )
     await leaveTeam()
     ElMessage.success('已退出团队')
-    fetchTeamInfo()
+    await fetchTeamInfo()
+    notifyTeamInfoUpdated()
   } catch (error) {
     if (error !== 'cancel') {
       console.error('退出团队失败:', error)
@@ -307,21 +321,30 @@ async function handleJoinTeam() {
   }
   joinLoading.value = true
   try {
-    const res = await joinTeam({
-      inviteCodeText: joinForm.value.inviteCodeText,
-      transferPoints: joinForm.value.transferPoints
-    })
+    const payload: { inviteCodeText: string; transferPoints?: boolean } = {
+      inviteCodeText: joinForm.value.inviteCodeText
+    }
+    if (showTransferPointsOption.value) {
+      payload.transferPoints = joinForm.value.transferPoints
+    }
+    const res = await joinTeam(payload)
     if (res.code === 200) {
       ElMessage.success('加入团队成功')
       showJoinTeamDialog.value = false
-      joinForm.value.inviteCodeText = ''
-      fetchTeamInfo()
+      handleJoinTeamDialogClose()
+      await fetchTeamInfo()
+      notifyTeamInfoUpdated()
     }
   } catch (error) {
     console.error('加入团队失败:', error)
   } finally {
     joinLoading.value = false
   }
+}
+
+function handleJoinTeamDialogClose() {
+  joinForm.value.inviteCodeText = ''
+  joinForm.value.transferPoints = false
 }
 
 function handleRecharge() {

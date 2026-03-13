@@ -249,7 +249,7 @@ import { updateProfile } from '@/api/user'
 import { sendCode } from '@/api/auth'
 import { unregister as unregisterApi } from '@/api/auth'
 import { createPaymentOrder, queryPaymentOrder } from '@/api/payment'
-import { OPEN_RECHARGE_DIALOG_KEY, TEAM_POINTS_UPDATED_EVENT } from '@/constants/payment'
+import { OPEN_RECHARGE_DIALOG_KEY, TEAM_INFO_UPDATED_EVENT, TEAM_POINTS_UPDATED_EVENT } from '@/constants/payment'
 import type { PaymentOrderVO, TeamMemberVO } from '@/types'
 import {
   House,
@@ -446,6 +446,14 @@ async function fetchTeamInfo() {
   } catch (error) {
     console.error('获取团队信息失败:', error)
   }
+}
+
+function handleTeamPointsUpdated() {
+  void fetchTeamInfo()
+}
+
+function handleTeamInfoUpdated() {
+  void fetchTeamInfo()
 }
 
 function handleCommand(command: string) {
@@ -731,6 +739,8 @@ provide(OPEN_RECHARGE_DIALOG_KEY, openPaymentDialog)
 
 onMounted(() => {
   void fetchTeamInfo()
+  window.addEventListener(TEAM_POINTS_UPDATED_EVENT, handleTeamPointsUpdated)
+  window.addEventListener(TEAM_INFO_UPDATED_EVENT, handleTeamInfoUpdated)
   const { activePath, openedMenus } = userStore.getSidebarState()
   defaultOpeneds.value = normalizeOpenedMenus(openedMenus)
   const restoredPath = normalizeActiveMenu(activePath)
@@ -748,6 +758,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener(TEAM_POINTS_UPDATED_EVENT, handleTeamPointsUpdated)
+  window.removeEventListener(TEAM_INFO_UPDATED_EVENT, handleTeamInfoUpdated)
   stopPaymentPolling()
   stopBalanceAnimation()
 })

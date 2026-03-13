@@ -13,7 +13,8 @@ import lombok.Getter;
 public enum PointSourceTypeEnum {
 
     PAYMENT("payment", "支付订单"),
-    BATCH_TASK("batch_task", "批量任务");
+    BATCH_TASK("batch_task", "批量任务"),
+    TEAM_TRANSFER("team_transfer", "团队迁移");
 
     private final String value;
     private final String description;
