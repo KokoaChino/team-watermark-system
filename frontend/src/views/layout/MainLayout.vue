@@ -13,6 +13,8 @@
         text-color="#bfcbd9"
         active-text-color="#409eff"
         @select="handleMenuSelect"
+        @open="handleSubMenuOpen"
+        @close="handleSubMenuClose"
       >
         <el-menu-item index="/">
           <el-icon><House /></el-icon>
@@ -236,7 +238,12 @@
 import { ref, computed, nextTick, onMounted, onBeforeUnmount, provide, watch, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { useUserStore } from '@/stores/user'
+import {
+  useUserStore,
+  DEFAULT_SIDEBAR_ACTIVE_PATH,
+  DEFAULT_SIDEBAR_OPENED_MENUS,
+  SIDEBAR_MENU_ROUTE_PATHS
+} from '@/stores/user'
 import { getTeamInfo } from '@/api/team'
 import { updateProfile } from '@/api/user'
 import { sendCode } from '@/api/auth'
@@ -269,9 +276,31 @@ const unregisterLoading = ref(false)
 const emailCountdown = ref(0)
 const profileFormRef = ref<FormInstance>()
 const sidebarMenuRef = ref<{ updateActiveIndex: (index: string) => void } | null>(null)
+const defaultOpeneds = ref<string[]>([...userStore.getSidebarState().openedMenus])
+
+const sideBarOpenedMenuSet = new Set(DEFAULT_SIDEBAR_OPENED_MENUS)
+const menuRoutePathSet = new Set(SIDEBAR_MENU_ROUTE_PATHS)
 
 const usernameRegex = /^[a-zA-Z0-9_\u4e00-\u9fa5]{4,16}$/
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+const emailCodeRegex = /^\d{6}$/
+
+const validateProfileCode = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+  const needEmailCode = !!profileForm.email && profileForm.email !== userStore.userInfo?.email
+  if (!needEmailCode) {
+    callback()
+    return
+  }
+  if (!value) {
+    callback(new Error('请输入验证码'))
+    return
+  }
+  if (!emailCodeRegex.test(value)) {
+    callback(new Error('邮箱验证码长度为6位'))
+    return
+  }
+  callback()
+}
 
 const profileForm = reactive({
   username: '',
@@ -291,7 +320,7 @@ const profileRules: FormRules = {
     { min: 6, max: 16, message: '密码长度需在6-16位之间', trigger: 'blur' }
   ],
   code: [
-    { required: true, message: '请输入验证码', trigger: 'blur' }
+    { validator: validateProfileCode, trigger: 'blur' }
   ]
 }
 
@@ -320,13 +349,6 @@ const activeMenu = computed(() => {
   return route.path
 })
 
-const defaultOpeneds = computed(() => {
-  const path = route.path
-  if (path === '/') return []
-  const basePath = '/' + path.split('/')[1]
-  return [basePath]
-})
-
 const teamRoleClass = computed(() => teamInfo.value?.role || '')
 const isLeaderRole = computed(() => teamInfo.value?.role === 'leader')
 const emailCodeDisabled = computed(() => emailCountdown.value > 0)
@@ -352,6 +374,46 @@ const pageTitle = computed(() => {
   return title || '首页'
 })
 
+function normalizeActiveMenu(path: string | undefined) {
+  if (!path || !menuRoutePathSet.has(path)) {
+    return DEFAULT_SIDEBAR_ACTIVE_PATH
+  }
+  return path
+}
+
+function normalizeOpenedMenus(openedMenus: string[] | undefined) {
+  if (!Array.isArray(openedMenus)) {
+    return [...DEFAULT_SIDEBAR_OPENED_MENUS]
+  }
+  const normalized = Array.from(new Set(openedMenus.filter((menu) => sideBarOpenedMenuSet.has(menu))))
+  return normalized.length > 0 ? normalized : [...DEFAULT_SIDEBAR_OPENED_MENUS]
+}
+
+function persistSidebarState(activePath = route.path) {
+  userStore.setSidebarState({
+    activePath: normalizeActiveMenu(activePath),
+    openedMenus: normalizeOpenedMenus(defaultOpeneds.value)
+  })
+}
+
+function handleSubMenuOpen(index: string) {
+  if (!sideBarOpenedMenuSet.has(index)) {
+    return
+  }
+  if (!defaultOpeneds.value.includes(index)) {
+    defaultOpeneds.value = [...defaultOpeneds.value, index]
+    persistSidebarState()
+  }
+}
+
+function handleSubMenuClose(index: string) {
+  if (!sideBarOpenedMenuSet.has(index)) {
+    return
+  }
+  defaultOpeneds.value = defaultOpeneds.value.filter((menu) => menu !== index)
+  persistSidebarState()
+}
+
 async function handleMenuSelect(index: string) {
   if (!index || index === route.path) {
     return
@@ -363,6 +425,8 @@ async function handleMenuSelect(index: string) {
       nextTick(() => {
         sidebarMenuRef.value?.updateActiveIndex(route.path)
       })
+    } else {
+      persistSidebarState(index)
     }
   } catch (error) {
     nextTick(() => {
@@ -399,6 +463,7 @@ function handleCommand(command: string) {
 }
 
 async function handleLogout() {
+  persistSidebarState(route.path)
   await userStore.logout()
   ElMessage.success('已退出登录')
   router.push('/auth/login')
@@ -424,51 +489,60 @@ function handlePaymentDialogClose() {
 
 async function handleSaveProfile() {
   if (!profileFormRef.value) return
-  
-  await profileFormRef.value.validate(async (valid) => {
-    if (!valid) return
-    
-    const needEmailCode = profileForm.email && profileForm.email !== userStore.userInfo?.email
-    const needPasswordCode = !!profileForm.newPassword
-    
-    if (profileForm.email && !profileForm.code) {
-      ElMessage.warning('请输入验证码')
-      return
+
+  const valid = await profileFormRef.value.validate().catch(() => false)
+  if (!valid) {
+    return
+  }
+
+  const nextUsername = profileForm.username.trim()
+  const nextEmail = profileForm.email.trim()
+  const nextPassword = profileForm.newPassword
+  const nextCode = profileForm.code.trim()
+  const needEmailCode = !!nextEmail && nextEmail !== userStore.userInfo?.email
+
+  const payload: Record<string, string> = {}
+  if (nextUsername) {
+    payload.username = nextUsername
+  }
+  if (nextPassword) {
+    payload.newPassword = nextPassword
+  }
+  if (needEmailCode) {
+    payload.newEmail = nextEmail
+    payload.emailCode = nextCode
+  }
+
+  if (Object.keys(payload).length === 0) {
+    ElMessage.warning('请至少修改一项信息')
+    return
+  }
+
+  saving.value = true
+  try {
+    await updateProfile(payload)
+    if (userStore.userInfo) {
+      if (payload.username) {
+        userStore.userInfo.username = payload.username
+      }
+      if (payload.newEmail) {
+        userStore.userInfo.email = payload.newEmail
+      }
     }
-    
-    saving.value = true
-    try {
-      const data: any = {}
-      if (profileForm.username) {
-          data.username = profileForm.username
-      }
-      if (profileForm.newPassword) {
-        data.newPassword = profileForm.newPassword
-      }
-      if (needEmailCode) {
-        data.newEmail = profileForm.email
-        data.emailCode = profileForm.code
-      } else if (needPasswordCode) {
-        data.emailCode = profileForm.code
-      }
-      
-      await updateProfile(data)
-      userStore.userInfo!.username = profileForm.username
-      userStore.userInfo!.email = profileForm.email || userStore.userInfo!.email
-      ElMessage.success('保存成功')
-      
-      if (profileForm.newPassword || needEmailCode) {
-        showProfileDialog.value = false
-        handleLogout()
-      } else {
-        showProfileDialog.value = false
-      }
-    } catch (error) {
-      console.error('保存失败:', error)
-    } finally {
-      saving.value = false
+    ElMessage.success('保存成功')
+    showProfileDialog.value = false
+
+    if (payload.newPassword || payload.newEmail) {
+      persistSidebarState(route.path)
+      await userStore.logout(true)
+      ElMessage.success('已退出登录')
+      await router.push('/auth/login')
     }
-  })
+  } catch (error) {
+    console.error('保存失败:', error)
+  } finally {
+    saving.value = false
+  }
 }
 
 async function handleSendCode() {
@@ -481,7 +555,7 @@ async function handleSendCode() {
     return
   }
   try {
-    await sendCode({ email: profileForm.email, type: 'update_password' })
+    await sendCode({ email: profileForm.email, type: 'update_email' })
     ElMessage.success('验证码已发送')
     emailCountdown.value = 60
     const timer = setInterval(() => {
@@ -657,9 +731,20 @@ provide(OPEN_RECHARGE_DIALOG_KEY, openPaymentDialog)
 
 onMounted(() => {
   void fetchTeamInfo()
+  const { activePath, openedMenus } = userStore.getSidebarState()
+  defaultOpeneds.value = normalizeOpenedMenus(openedMenus)
+  const restoredPath = normalizeActiveMenu(activePath)
+
+  if (route.path === DEFAULT_SIDEBAR_ACTIVE_PATH && restoredPath !== DEFAULT_SIDEBAR_ACTIVE_PATH) {
+    void router.replace(restoredPath).catch((error) => {
+      console.error('恢复菜单页面失败:', error)
+    })
+  }
+
   nextTick(() => {
     sidebarMenuRef.value?.updateActiveIndex(route.path)
   })
+  persistSidebarState(route.path)
 })
 
 onBeforeUnmount(() => {
@@ -669,8 +754,9 @@ onBeforeUnmount(() => {
 
 watch(
   () => route.path,
-  () => {
+  (path) => {
     void fetchTeamInfo()
+    persistSidebarState(path)
     nextTick(() => {
       sidebarMenuRef.value?.updateActiveIndex(route.path)
     })

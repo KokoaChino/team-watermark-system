@@ -98,7 +98,11 @@ import { ElMessage } from 'element-plus'
 import { User, Lock, Message } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { login, sendCode } from '@/api/auth'
-import { useUserStore } from '@/stores/user'
+import {
+  useUserStore,
+  DEFAULT_SIDEBAR_ACTIVE_PATH,
+  SIDEBAR_MENU_ROUTE_PATHS
+} from '@/stores/user'
 
 const router = useRouter()
 const route = useRoute()
@@ -236,8 +240,17 @@ async function handleLogin() {
 
     ElMessage.success('登录成功')
 
-    const redirect = route.query.redirect as string
-    router.push(redirect || '/')
+    const redirect = route.query.redirect as string | undefined
+    if (redirect) {
+      router.push(redirect)
+      return
+    }
+
+    const { activePath } = userStore.getSidebarState()
+    const restorePath = SIDEBAR_MENU_ROUTE_PATHS.includes(activePath)
+      ? activePath
+      : DEFAULT_SIDEBAR_ACTIVE_PATH
+    router.push(restorePath)
   } catch {
   } finally {
     loading.value = false
