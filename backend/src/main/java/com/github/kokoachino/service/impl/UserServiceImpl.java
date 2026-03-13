@@ -152,12 +152,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public void sendVerificationCode(SendCodeDTO sendCodeDTO) {
-        String code = RandomUtil.randomNumbers(6);
         String typeValue = sendCodeDTO.getType();
         VerificationCodeTypeEnum type = VerificationCodeTypeEnum.fromValue(typeValue);
         if (type == null) {
             throw new BizException(ResultCode.VALIDATE_FAILED);
         }
+        if (type == VerificationCodeTypeEnum.REGISTER) {
+            long count = this.count(new LambdaQueryWrapper<User>()
+                    .eq(User::getEmail, sendCodeDTO.getEmail()));
+            if (count > 0) {
+                throw new BizException(ResultCode.EMAIL_EXIST);
+            }
+        }
+        String code = RandomUtil.randomNumbers(6);
         String redisKey = RedisKeyUtils.getEmailCodeKey(typeValue, sendCodeDTO.getEmail());
         if (redisUtils.hasKey(redisKey)) {
             Long expire = redisUtils.getExpire(redisKey);
