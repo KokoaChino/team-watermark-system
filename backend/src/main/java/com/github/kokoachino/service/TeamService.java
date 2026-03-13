@@ -40,8 +40,6 @@ public interface TeamService extends IService<Team> {
 
     Integer getCurrentTeamId(Integer userId);
 
-    boolean isTeamLeader(Integer userId, Integer teamId);
-
     TeamMemberVO updateTeamName(Integer teamId, Integer userId, String username, UpdateTeamNameDTO dto);
 
     TeamMemberVO transferLeader(Integer teamId, Integer currentLeaderId, String username, TransferLeaderDTO dto);

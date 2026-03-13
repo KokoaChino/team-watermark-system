@@ -9,9 +9,11 @@ import com.github.kokoachino.common.enums.TeamRoleEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.common.util.InviteCodeUtils;
+import com.github.kokoachino.common.util.TeamContext;
 import com.github.kokoachino.mapper.TeamInviteCodeMapper;
 import com.github.kokoachino.mapper.TeamMapper;
 import com.github.kokoachino.mapper.TeamMemberMapper;
+import com.github.kokoachino.mapper.TeamEventLogMapper;
 import com.github.kokoachino.mapper.UserMapper;
 import com.github.kokoachino.model.dto.GenerateInviteCodeDTO;
 import com.github.kokoachino.model.dto.JoinTeamDTO;
@@ -19,6 +21,7 @@ import com.github.kokoachino.model.dto.TransferLeaderDTO;
 import com.github.kokoachino.model.dto.UpdateTeamNameDTO;
 import com.github.kokoachino.model.dto.TeamEventLogRecordDTO;
 import com.github.kokoachino.model.entity.Team;
+import com.github.kokoachino.model.entity.TeamEventLog;
 import com.github.kokoachino.model.entity.TeamInviteCode;
 import com.github.kokoachino.model.entity.TeamMember;
 import com.github.kokoachino.model.entity.User;
@@ -53,6 +56,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
 
     private final TeamMemberMapper teamMemberMapper;
     private final TeamInviteCodeMapper inviteCodeMapper;
+    private final TeamEventLogMapper teamEventLogMapper;
     private final UserMapper userMapper;
     private final TeamEventLogService teamEventLogService;
     private final LogUserStatusSyncService logUserStatusSyncService;
@@ -77,6 +81,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     @Override
     @Transactional(rollbackFor = Exception.class)
     public InviteCodeVO generateInviteCode(Integer teamId, Integer userId, String username, GenerateInviteCodeDTO dto) {
+        if (!TeamContext.isLeader()) {
+            throw new BizException(ResultCode.NOT_TEAM_LEADER);
+        }
         String rawCode;
         do {
             rawCode = InviteCodeUtils.generateRawCode();
@@ -149,6 +156,16 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (existingMember != null) {
             throw new BizException(ResultCode.ALREADY_IN_TEAM);
         }
+        Long usedCount = teamEventLogMapper.selectCount(new LambdaQueryWrapper<TeamEventLog>()
+                .eq(TeamEventLog::getTeamId, newTeamId)
+                .eq(TeamEventLog::getEventType, TeamEventTypeEnum.MEMBER_JOIN.getValue())
+                .eq(TeamEventLog::getInviteCodeId, inviteCode.getId())
+                .and(wrapper -> wrapper.eq(TeamEventLog::getAffectedUserId, userId)
+                        .or()
+                        .eq(TeamEventLog::getOperatorUserId, userId)));
+        if (usedCount != null && usedCount > 0) {
+            throw new BizException(ResultCode.INVITE_CODE_ALREADY_USED_BY_USER);
+        }
         TeamMember currentMember = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>().eq(TeamMember::getUserId, userId));
         Integer oldTeamId = null;
         String oldTeamName = null;
@@ -209,6 +226,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         }
         if (!inviteCode.getTeamId().equals(teamId)) {
             throw new BizException(ResultCode.FORBIDDEN);
+        }
+        if (!TeamContext.isLeader()) {
+            throw new BizException(ResultCode.NOT_TEAM_LEADER);
         }
         Map<String, Object> beforeData = Map.of("status", inviteCode.getStatus());
         inviteCode.setStatus(InviteCodeStatusEnum.INACTIVE.getValue());
@@ -296,6 +316,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (targetMember == null) {
             throw new BizException(ResultCode.MEMBER_NOT_FOUND);
         }
+        if (!TeamContext.isLeader()) {
+            throw new BizException(ResultCode.NOT_TEAM_LEADER);
+        }
         Integer leaderUserId = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
                 .eq(TeamMember::getTeamId, teamId)
                 .eq(TeamMember::getRole, TeamRoleEnum.LEADER.getValue())).getUserId();
@@ -343,22 +366,14 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     }
 
     @Override
-    public boolean isTeamLeader(Integer userId, Integer teamId) {
-        TeamMember member = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
-                .eq(TeamMember::getUserId, userId)
-                .eq(TeamMember::getTeamId, teamId));
-        return member != null && TeamRoleEnum.LEADER.getValue().equals(member.getRole());
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public TeamMemberVO updateTeamName(Integer teamId, Integer userId, String username, UpdateTeamNameDTO dto) {
         Team team = this.getById(teamId);
         if (team == null) {
             throw new BizException(ResultCode.TEAM_NOT_FOUND);
         }
-        if (!isTeamLeader(userId, teamId)) {
-            throw new BizException(ResultCode.FORBIDDEN);
+        if (!TeamContext.isLeader()) {
+            throw new BizException(ResultCode.NOT_TEAM_LEADER);
         }
         String oldName = team.getName();
         team.setName(dto.getName());
@@ -382,8 +397,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (team == null) {
             throw new BizException(ResultCode.TEAM_NOT_FOUND);
         }
-        if (!isTeamLeader(currentLeaderId, teamId)) {
-            throw new BizException(ResultCode.FORBIDDEN);
+        if (!TeamContext.isLeader()) {
+            throw new BizException(ResultCode.NOT_TEAM_LEADER);
         }
         Integer newLeaderId = dto.getNewLeaderId();
         if (newLeaderId.equals(currentLeaderId)) {

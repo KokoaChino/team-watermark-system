@@ -75,6 +75,7 @@ public enum ResultCode {
     INVITE_CODE_EXPIRED(2101, "邀请码已过期"),
     INVITE_CODE_USED_UP(2102, "邀请码使用次数已达上限"),
     INVITE_CODE_NOT_FOUND(2103, "邀请码不存在"),
+    INVITE_CODE_ALREADY_USED_BY_USER(2104, "您已使用过该邀请码"),
 
     // 2200-2299：成员管理
     ALREADY_IN_TEAM(2200, "您已经在团队中"),
