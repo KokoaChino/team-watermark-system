@@ -38,14 +38,19 @@ spring:
             class: javax.net.ssl.SSLSocketFactory
 
 logging: # 日志
+  pattern:
+    console: "[%X{traceId:-NO-TRACE}] %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"
   level:
-    com.github.kokoachino: debug
+    com.github.kokoachino: info
+    com.github.kokoachino.config.MyBatisSqlLogInterceptor: debug
+    com.github.kokoachino.mapper: info
+    org.apache.ibatis: warn
+    com.baomidou.mybatisplus: warn
 
 mybatis-plus: # MyBatis-Plus
   mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
       id-type: auto

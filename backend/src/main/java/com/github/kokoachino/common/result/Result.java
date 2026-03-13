@@ -1,6 +1,7 @@
 package com.github.kokoachino.common.result;
 
 import lombok.Data;
+import org.slf4j.MDC;
 
 
 /**
@@ -12,9 +13,12 @@ import lombok.Data;
 @Data
 public class Result<T> {
 
+    private static final String TRACE_ID_KEY = "traceId";
+
     private int code;
     private String message;
     private T data;
+    private String traceId;
 
     protected Result() {}
 
@@ -22,6 +26,7 @@ public class Result<T> {
         this.code = code;
         this.message = message;
         this.data = data;
+        this.traceId = MDC.get(TRACE_ID_KEY);
     }
 
     public static <T> Result<T> success(T data) {
