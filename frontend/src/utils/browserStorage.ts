@@ -112,19 +112,19 @@ export function isUserCancelledFileSelection(error: unknown) {
 }
 
 export function buildStorageInsufficientMessage(requiredBytes: number, availableBytes: number) {
-  return `\u6d4f\u89c8\u5668\u5f53\u524d\u53ef\u7528\u672c\u5730\u7a7a\u95f4\u7ea6 ${formatStorageSize(availableBytes)}\uff0c\u9884\u8ba1\u672c\u6b21\u4efb\u52a1\u81f3\u5c11\u9700\u8981 ${formatStorageSize(requiredBytes)}\u3002\u8bf7\u5148\u91ca\u653e\u78c1\u76d8\u7a7a\u95f4\u540e\u518d\u5f00\u59cb\u4efb\u52a1\u3002`
+  return `浏览器当前可用本地空间约 ${formatStorageSize(availableBytes)}，预计本次任务至少需要 ${formatStorageSize(requiredBytes)}。请先释放磁盘空间后再开始任务`
 }
 
 export function buildStorageSetupFailureMessage() {
-  return '\u672c\u5730\u5b58\u50a8\u4e0d\u53ef\u7528\uff0c\u4efb\u52a1\u5c1a\u672a\u5f00\u59cb\u6267\u884c\u3002\u7cfb\u7edf\u5df2\u81ea\u52a8\u7ed3\u675f\u672c\u6b21\u4efb\u52a1\u5e76\u8fd4\u8fd8\u70b9\u6570\u3002\u8bf7\u91ca\u653e\u78c1\u76d8\u7a7a\u95f4\u6216\u68c0\u67e5\u6d4f\u89c8\u5668\u5b58\u50a8\u6743\u9650\u540e\u91cd\u8bd5\u3002'
+  return '本地存储不可用，任务尚未开始执行。系统已自动结束本次任务并返还点数。请释放磁盘空间或检查浏览器存储权限后重试'
 }
 
 export function buildStorageRuntimeFailureMessage() {
-  return '\u672c\u5730\u5b58\u50a8\u7a7a\u95f4\u4e0d\u8db3\uff0c\u4efb\u52a1\u5df2\u63d0\u524d\u7ec8\u6b62\u3002\u7cfb\u7edf\u5c06\u6309\u5df2\u6210\u529f\u5904\u7406\u7684\u56fe\u7247\u6570\u91cf\u7ed3\u7b97\uff0c\u5e76\u8fd4\u8fd8\u5269\u4f59\u70b9\u6570\u3002\u8bf7\u91ca\u653e\u78c1\u76d8\u7a7a\u95f4\u540e\u91cd\u8bd5\u3002'
+  return '本地存储空间不足，任务已提前终止。系统将按已成功处理的图片数量结算，并返还剩余点数。请释放磁盘空间后重试'
 }
 
 export function buildZipDownloadStorageFailureMessage() {
-  return '\u7ed3\u679c\u5305\u5c01\u88c5\u6216\u4fdd\u5b58\u5931\u8d25\uff0c\u53ef\u80fd\u662f\u672c\u5730\u7a7a\u95f4\u4e0d\u8db3\u3002\u8bf7\u91ca\u653e\u78c1\u76d8\u7a7a\u95f4\u540e\u91cd\u8bd5\uff0c\u6216\u5148\u5355\u72ec\u4e0b\u8f7d\u7ed3\u679c\u56fe\u3002'
+  return '结果包封装或保存失败，可能是本地空间不足。请释放磁盘空间后重试，或先单独下载结果图'
 }
 
 function estimateRequiredBytes(bytes: number) {
