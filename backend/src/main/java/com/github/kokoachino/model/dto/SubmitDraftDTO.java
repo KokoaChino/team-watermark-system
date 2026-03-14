@@ -15,7 +15,12 @@ import lombok.Data;
 @Schema(description = "提交草稿请求")
 public class SubmitDraftDTO {
 
-    @NotNull(message = "是否强制新建不能为空")
-    @Schema(description = "是否强制新建（冲突时选择新建）", example = "false")
-    private Boolean forceCreateNew;
+    @NotNull(message = "提交方式不能为空")
+    @Schema(description = "提交方式：CREATE=新建模板，UPDATE=修改源模板", example = "UPDATE")
+    private SubmitAction submitAction;
+
+    public enum SubmitAction {
+        CREATE,
+        UPDATE
+    }
 }

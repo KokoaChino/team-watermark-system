@@ -138,6 +138,7 @@ export interface ImageWatermarkConfig extends ImageWatermarkConfigDTO {
 export interface DraftVO {
   id: number
   sourceTemplateId?: number
+  sourceTemplateName?: string
   sourceVersion?: number
   name?: string
   config: WatermarkConfigDTO

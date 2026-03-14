@@ -186,7 +186,12 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
             }
             WatermarkConfigDTO config = parseConfig(draft.getConfig());
             WatermarkTemplateVO result;
-            if (draft.getSourceTemplateId() == null || Boolean.TRUE.equals(dto.getForceCreateNew())) {
+            boolean submitAsCreate = SubmitDraftDTO.SubmitAction.CREATE.equals(dto.getSubmitAction());
+            boolean submitAsUpdate = SubmitDraftDTO.SubmitAction.UPDATE.equals(dto.getSubmitAction());
+            if (submitAsUpdate && draft.getSourceTemplateId() == null) {
+                throw new BizException(ResultCode.VALIDATE_FAILED, "当前草稿不关联任何源模板，无法执行修改提交");
+            }
+            if (submitAsCreate || draft.getSourceTemplateId() == null) {
                 result = doCreateTemplate(teamId, userId, username, draft.getName(), config);
             } else {
                 WatermarkTemplate sourceTemplate = templateMapper.selectById(draft.getSourceTemplateId());
@@ -322,9 +327,15 @@ public class WatermarkTemplateServiceImpl extends ServiceImpl<WatermarkTemplateM
     }
 
     private DraftVO convertToDraftVO(WatermarkTemplateDraft draft, boolean hasConflict, String conflictMessage) {
+        String sourceTemplateName = null;
+        if (draft.getSourceTemplateId() != null) {
+            WatermarkTemplate sourceTemplate = templateMapper.selectById(draft.getSourceTemplateId());
+            sourceTemplateName = sourceTemplate != null ? sourceTemplate.getName() : null;
+        }
         return DraftVO.builder()
                 .id(draft.getId())
                 .sourceTemplateId(draft.getSourceTemplateId())
+                .sourceTemplateName(sourceTemplateName)
                 .sourceVersion(draft.getSourceVersion())
                 .name(draft.getName())
                 .config(parseConfig(draft.getConfig()))

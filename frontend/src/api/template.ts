@@ -9,7 +9,7 @@ export interface SaveDraftDTO {
 }
 
 export interface SubmitDraftDTO {
-  forceCreateNew: boolean
+  submitAction: 'CREATE' | 'UPDATE'
 }
 
 export function getTemplateList() {

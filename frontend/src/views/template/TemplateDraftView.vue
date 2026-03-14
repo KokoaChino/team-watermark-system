@@ -7,9 +7,15 @@
           placeholder="请输入模板名称"
           style="width: 300px"
         />
-        <el-tag v-if="draft?.sourceTemplateId" type="info" size="small">
-          编辑自模板 #{{ draft.sourceTemplateId }}
-        </el-tag>
+        <div v-if="draft?.sourceTemplateId" class="submit-source">
+          <el-radio-group v-model="submitAction">
+            <el-radio-button value="UPDATE">修改源模板</el-radio-button>
+            <el-radio-button value="CREATE">新建模板</el-radio-button>
+          </el-radio-group>
+            <el-tag type="info" size="small">
+                编辑自模板：{{ sourceTemplateDisplayName }}
+            </el-tag>
+        </div>
       </div>
       <div class="header-right">
         <el-button @click="handleClearDraft">清空草稿</el-button>
@@ -222,6 +228,8 @@ import type {
 import TextWatermarkEditor from '@/components/watermark/TextWatermarkEditor.vue'
 import ImageWatermarkEditor from '@/components/watermark/ImageWatermarkEditor.vue'
 
+type SubmitAction = 'CREATE' | 'UPDATE'
+
 const draft = ref<DraftVO | null>(null)
 const draftName = ref('')
 const baseConfig = ref<BaseConfigDTO>({
@@ -235,6 +243,7 @@ const saving = ref(false)
 const submitting = ref(false)
 const showConflictDialog = ref(false)
 const conflictMessage = ref('')
+const submitAction = ref<SubmitAction>('CREATE')
 const previewCanvas = ref<HTMLCanvasElement | null>(null)
 const loadedImages = ref<Map<string, HTMLImageElement>>(new Map())
 const loadedFonts = ref<Set<string>>(new Set())
@@ -275,6 +284,10 @@ const canvasScale = computed(() => {
 
 const selectedWatermark = computed(() => {
   return watermarks.value.find(w => w.id === selectedWatermarkId.value) || null
+})
+
+const sourceTemplateDisplayName = computed(() => {
+  return draft.value?.sourceTemplateName || '原模板'
 })
 
 const canvasContainerStyle = computed(() => {
@@ -324,6 +337,7 @@ async function loadDraft() {
     if (res.code === 200 && res.data) {
       draft.value = res.data
       draftName.value = res.data.name || ''
+      submitAction.value = res.data.sourceTemplateId ? 'UPDATE' : 'CREATE'
       baseConfig.value = res.data.config?.baseConfig || baseConfig.value
       
       // 直接使用后端返回的水印列表，无需转换，但补充默认值
@@ -535,7 +549,8 @@ async function handleSubmitDraft() {
       config
     })
     
-    const res = await submitDraft({ forceCreateNew: false })
+    const submitActionValue: SubmitAction = draft.value?.sourceTemplateId ? submitAction.value : 'CREATE'
+    const res = await submitDraft({ submitAction: submitActionValue })
     if (res.code === 200) {
       ElMessage.success('模板提交成功')
       await createNewDraft()
@@ -556,7 +571,7 @@ async function handleForceCreateNew() {
   showConflictDialog.value = false
   submitting.value = true
   try {
-    const res = await submitDraft({ forceCreateNew: true })
+    const res = await submitDraft({ submitAction: 'CREATE' })
     if (res.code === 200) {
       ElMessage.success('已新建模板')
       await createNewDraft()
@@ -1319,6 +1334,7 @@ watch([baseConfig, watermarks], () => {
   .header-left {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
   }
 
@@ -1326,6 +1342,12 @@ watch([baseConfig, watermarks], () => {
     display: flex;
     gap: 8px;
   }
+}
+
+.submit-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .draft-content {

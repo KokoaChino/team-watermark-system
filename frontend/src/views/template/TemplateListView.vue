@@ -11,7 +11,7 @@
       <template #item-actions="{ item }">
         <el-button type="primary" size="small" @click.stop="handleEdit(item)">
           <el-icon><Edit /></el-icon>
-          修改
+          编辑
         </el-button>
         <el-button
           v-if="canDelete(item)"
