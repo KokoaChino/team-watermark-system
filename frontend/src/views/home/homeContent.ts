@@ -104,7 +104,7 @@ export const homeContent: HomeContent = {
   docs: [
     {
       title: '项目背景',
-      summary: '说明选题背景、核心痛点、目标用户与整体方案',
+      summary: '说明业务背景与痛点、目标用户与核心方案',
       href: '/home/docs/doc-viewer.html?file=project-background.md',
       updatedAt: '2026-03-14',
       icon: Document
@@ -134,25 +134,25 @@ export const homeContent: HomeContent = {
   links: [
     {
       title: 'GitHub 仓库',
-      description: '替换为你的仓库地址，方便展示源码与协作开发',
+      description: '仓库地址，展示源码与协作开发',
       url: 'https://github.com/KokoaChino/team-watermark-system',
       icon: Link
     },
     {
       title: 'Issue 反馈入口',
-      description: '替换为问题追踪地址，集中记录 Bug 与改进建议',
+      description: '问题追踪地址，集中记录 Bug 与改进建议',
       url: 'https://github.com/KokoaChino/team-watermark-system/issues',
       icon: EditPen
     },
     {
       title: '作者联系邮箱',
-      description: '替换为真实邮箱，用于项目合作和技术交流',
+      description: '真实邮箱，用于项目反馈和技术交流',
       url: 'mailto:2178740980@qq.com',
       icon: Message
     },
     {
       title: '作者 BiliBili 主页',
-      description: '这里主要用于引流关注，不强依赖上传视频内容',
+      description: '引流，欢迎点点关注',
       url: 'https://space.bilibili.com/497982061',
       icon: VideoPlay
     }

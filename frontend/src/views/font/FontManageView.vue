@@ -258,7 +258,7 @@ function getSourceText(row: FontVO) {
 }
 
 function canDelete(row: FontVO) {
-  return !row.isSystemFont && (isLeader.value || row.uploadedBy === userStore.userInfo?.id)
+  return !row.isSystemFont && isLeader.value
 }
 
 function getPreviewStyle(row: FontVO) {

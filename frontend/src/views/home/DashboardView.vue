@@ -9,14 +9,20 @@
       <div class="hero-watermark" aria-hidden="true">
         <svg class="wm-shape" viewBox="0 0 280 190" fill="none">
           <path d="M162 18 A82 82 0 0 1 262 112" />
-          <path d="M212 118 V170 H128" />
+          <path d="M0 50 V150 H120" />
         </svg>
       </div>
       <div class="hero-main">
         <h1 class="hero-title">{{ content.hero.title }}</h1>
         <p class="hero-subtitle">{{ content.hero.subtitle }}</p>
         <div class="tech-stack">
-          <span v-for="tech in content.hero.techStacks" :key="tech" class="tech-chip">{{ tech }}</span>
+          <span
+            v-for="tech in content.hero.techStacks"
+            :key="tech"
+            :class="['tech-chip', getTechChipClass(tech)]"
+          >
+            {{ tech }}
+          </span>
         </div>
       </div>
     </section>
@@ -136,6 +142,7 @@ const router = useRouter()
 const content = homeContent
 const videoErrors = reactive<Record<string, boolean>>({})
 const heroOffset = reactive({ x: 0, y: 0 })
+const frontendTechSet = new Set(['Vue', 'TypeScript', 'Vite', 'Pinia', 'Vue Router', 'Element Plus', 'Axios'])
 
 const heroStyle = computed(() => ({
   '--hero-offset-x': heroOffset.x.toFixed(4),
@@ -166,6 +173,10 @@ function handleHeroPointerLeave() {
 
 function navigate(path: string) {
   void router.push(path)
+}
+
+function getTechChipClass(tech: string) {
+  return frontendTechSet.has(tech) ? 'tech-chip--frontend' : 'tech-chip--backend'
 }
 
 function handleVideoError(videoId: string) {
@@ -268,6 +279,14 @@ function getVideoLastUpdated(video: VideoItem) {
     font-size: 12px;
     white-space: nowrap;
   }
+
+  .tech-chip--frontend {
+    border-color: rgba(117, 167, 198, 0.45);
+  }
+
+  .tech-chip--backend {
+    border-color: rgba(128, 175, 148, 0.5);
+  }
 }
 
 .hero-watermark {
@@ -285,7 +304,7 @@ function getVideoLastUpdated(video: VideoItem) {
 
     path {
       stroke: rgba(160, 171, 181, 0.46);
-      stroke-width: 8;
+      stroke-width: 9;
       stroke-linecap: round;
       stroke-linejoin: round;
     }

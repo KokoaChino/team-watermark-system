@@ -213,9 +213,15 @@ const currentHeight = computed(() => {
 })
 
 watch(() => props.config, (newConfig) => {
-  // 只有当新配置的 imageUrl 变化时才完全重置（即切换了图片）
-  // 其他情况保留用户当前的编辑状态
-  if (newConfig.imageUrl !== localConfig.value.imageUrl) {
+  const needsSync =
+    newConfig.imageUrl !== localConfig.value.imageUrl ||
+    newConfig.scale !== localConfig.value.scale ||
+    newConfig.fitMode !== localConfig.value.fitMode ||
+    newConfig.anchor !== localConfig.value.anchor ||
+    (newConfig.opacity ?? 1) !== (localConfig.value.opacity ?? 1) ||
+    newConfig.originalWidth !== localConfig.value.originalWidth ||
+    newConfig.originalHeight !== localConfig.value.originalHeight
+  if (needsSync) {
     localConfig.value = { 
       ...newConfig,
       opacity: newConfig.opacity ?? 1
