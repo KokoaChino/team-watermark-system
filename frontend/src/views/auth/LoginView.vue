@@ -1,5 +1,21 @@
 <template>
-  <div class="auth-container">
+  <div ref="authContainerRef" class="auth-container">
+    <div class="auth-scene" aria-hidden="true">
+      <div class="auth-glow auth-glow--a"></div>
+      <div class="auth-glow auth-glow--b"></div>
+      <div class="auth-grid"></div>
+      <div class="auth-ruler auth-ruler--horizontal"></div>
+      <div class="auth-ruler auth-ruler--vertical"></div>
+      <div class="auth-shape auth-shape--circle"></div>
+      <div class="auth-shape auth-shape--diamond"></div>
+      <div class="auth-shape auth-shape--triangle"></div>
+      <div class="auth-shape auth-shape--rect"></div>
+      <div class="auth-shape auth-shape--hexagon"></div>
+      <div class="auth-shape auth-shape--ring"></div>
+      <div class="auth-shape auth-shape--cube"></div>
+      <div class="auth-shape auth-shape--cylinder"></div>
+      <div class="auth-orb auth-orb--evade"></div>
+    </div>
     <div class="auth-card">
       <div class="auth-header">
         <h1 class="auth-title">批量图片水印协作平台</h1>
@@ -98,6 +114,7 @@ import { ElMessage } from 'element-plus'
 import { User, Lock, Message } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { login, sendCode } from '@/api/auth'
+import { useAuthInteractiveBackground } from '@/composables/useAuthInteractiveBackground'
 import {
   useUserStore,
   DEFAULT_SIDEBAR_ACTIVE_PATH,
@@ -108,6 +125,7 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
+const authContainerRef = ref<HTMLElement | null>(null)
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const loginType = ref<'password' | 'code'>('password')
@@ -181,6 +199,8 @@ const sendCodeDisabled = computed(() => {
   if (!emailRegex.test(formData.account)) return true
   return false
 })
+
+useAuthInteractiveBackground(authContainerRef)
 
 function switchLoginType(type: 'password' | 'code') {
   loginType.value = type

@@ -1,5 +1,21 @@
 <template>
-  <div class="auth-container">
+  <div ref="authContainerRef" class="auth-container">
+    <div class="auth-scene" aria-hidden="true">
+      <div class="auth-glow auth-glow--a"></div>
+      <div class="auth-glow auth-glow--b"></div>
+      <div class="auth-grid"></div>
+      <div class="auth-ruler auth-ruler--horizontal"></div>
+      <div class="auth-ruler auth-ruler--vertical"></div>
+      <div class="auth-shape auth-shape--circle"></div>
+      <div class="auth-shape auth-shape--diamond"></div>
+      <div class="auth-shape auth-shape--triangle"></div>
+      <div class="auth-shape auth-shape--rect"></div>
+      <div class="auth-shape auth-shape--hexagon"></div>
+      <div class="auth-shape auth-shape--ring"></div>
+      <div class="auth-shape auth-shape--cube"></div>
+      <div class="auth-shape auth-shape--cylinder"></div>
+      <div class="auth-orb auth-orb--evade"></div>
+    </div>
     <div class="auth-card">
       <div class="auth-header">
         <h1 class="auth-title">找回密码</h1>
@@ -109,9 +125,11 @@ import { ElMessage } from 'element-plus'
 import { Message, Lock, Key } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { forgotPassword, sendCode } from '@/api/auth'
+import { useAuthInteractiveBackground } from '@/composables/useAuthInteractiveBackground'
 
 const router = useRouter()
 
+const authContainerRef = ref<HTMLElement | null>(null)
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 const sendCodeLoading = ref(false)
@@ -209,6 +227,8 @@ const strengthText = computed(() => {
   if (passwordStrength.value <= 3) return '较强'
   return '强'
 })
+
+useAuthInteractiveBackground(authContainerRef)
 
 function checkPasswordStrength() {
   let strength = 0
