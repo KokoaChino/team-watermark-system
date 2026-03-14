@@ -4,6 +4,7 @@
   BatchTaskExecutionSession,
   BatchTaskExecutionWatermarkInput,
   BatchTaskImageDraft,
+  BatchTaskWatermarkFallbackConfig,
   ImageWatermarkConfig,
   TextWatermarkConfig,
   WatermarkItemDTO,
@@ -18,6 +19,10 @@ import {
   validateOutputName,
   validateTargetDirectory
 } from '@/utils/batchTask'
+import {
+  LEGACY_BATCH_TASK_WATERMARK_FALLBACK_CONFIG,
+  normalizeBatchTaskWatermarkFallbackConfig
+} from '@/utils/batchTaskFallback'
 
 interface DrawableAsset {
   width: number
@@ -90,6 +95,7 @@ export function createExecutionSession(options: {
   description: string
   template: WatermarkTemplateVO
   items: BatchTaskImageDraft[]
+  watermarkFallbackConfig?: BatchTaskWatermarkFallbackConfig
 }) {
   const sessionId = createSessionId()
   const createdAt = new Date().toISOString()
@@ -118,6 +124,7 @@ export function createExecutionSession(options: {
     templateName: options.template.name,
     templateVersion: options.template.version,
     templateSnapshot: cloneTemplateSnapshot(options.template),
+    watermarkFallbackConfig: normalizeBatchTaskWatermarkFallbackConfig(options.watermarkFallbackConfig),
     description: options.description,
     createdAt,
     status: 'queued',
@@ -199,6 +206,10 @@ export async function renderBatchTaskItem(options: RenderBatchTaskItemOptions): 
     const baseConfig = options.session.templateSnapshot.config.baseConfig
     const scaleX = canvas.width / baseConfig.width
     const scaleY = canvas.height / baseConfig.height
+    const watermarkFallbackConfig = normalizeBatchTaskWatermarkFallbackConfig(
+      options.session.watermarkFallbackConfig,
+      LEGACY_BATCH_TASK_WATERMARK_FALLBACK_CONFIG
+    )
 
     const watermarkMap = new Map(options.item.watermarkInputs.map((input) => [input.watermarkId, input]))
     const watermarks = options.session.templateSnapshot.config.watermarks
@@ -211,22 +222,23 @@ export async function renderBatchTaskItem(options: RenderBatchTaskItemOptions): 
       }
 
       if (watermark.type === 'text') {
-        const textValue = input.value.trim()
-        if (!textValue) {
-          continue
-        }
-
-        await drawTextWatermarkOnCanvas({
+        await drawTextWatermarkWithFallback({
           ctx,
           watermark,
-          textValue,
+          inputValue: input.value,
+          fallbackStrategy: watermarkFallbackConfig.text,
           scaleX,
           scaleY
         })
         continue
       }
 
-      const imageAsset = await resolveWatermarkAsset(input, options.loadWatermarkFile)
+      const imageAsset = await resolveImageWatermarkAssetWithFallback({
+        input,
+        watermark,
+        fallbackStrategy: watermarkFallbackConfig.image,
+        loadWatermarkFile: options.loadWatermarkFile
+      })
       if (!imageAsset) {
         continue
       }
@@ -387,6 +399,107 @@ function cloneWatermark(watermark: WatermarkItemDTO): WatermarkItemDTO {
     textConfig: watermark.textConfig ? { ...watermark.textConfig } : undefined,
     imageConfig: watermark.imageConfig ? { ...watermark.imageConfig } : undefined
   })
+}
+
+async function drawTextWatermarkWithFallback(options: {
+  ctx: CanvasRenderingContext2D
+  watermark: WatermarkItemDTO
+  inputValue: string
+  fallbackStrategy: BatchTaskWatermarkFallbackConfig['text']
+  scaleX: number
+  scaleY: number
+}) {
+  const templateText = getTemplateTextWatermarkContent(options.watermark)
+  let textValue = options.inputValue.trim()
+
+  if (!textValue && options.fallbackStrategy === 'template') {
+    textValue = templateText
+  }
+
+  if (!textValue) {
+    return
+  }
+
+  try {
+    await drawTextWatermarkOnCanvas({
+      ctx: options.ctx,
+      watermark: options.watermark,
+      textValue,
+      scaleX: options.scaleX,
+      scaleY: options.scaleY
+    })
+    return
+  } catch (error) {
+    const canRetryWithTemplate = options.fallbackStrategy === 'template'
+      && Boolean(templateText)
+      && templateText !== textValue
+
+    if (!canRetryWithTemplate) {
+      console.warn(`文字水印“${options.watermark.name}”绘制失败，已按降级策略跳过:`, error)
+      return
+    }
+  }
+
+  try {
+    await drawTextWatermarkOnCanvas({
+      ctx: options.ctx,
+      watermark: options.watermark,
+      textValue: templateText,
+      scaleX: options.scaleX,
+      scaleY: options.scaleY
+    })
+  } catch (templateError) {
+    console.warn(`文字水印“${options.watermark.name}”模板内容绘制失败，已跳过:`, templateError)
+  }
+}
+
+async function resolveImageWatermarkAssetWithFallback(options: {
+  input: BatchTaskExecutionWatermarkInput
+  watermark: WatermarkItemDTO
+  fallbackStrategy: BatchTaskWatermarkFallbackConfig['image']
+  loadWatermarkFile: (fileKey: string) => Promise<File | null>
+}): Promise<DrawableAsset | null> {
+  const templateImageUrl = getTemplateImageWatermarkUrl(options.watermark)
+  const fallbackToTemplate = options.fallbackStrategy === 'template' && Boolean(templateImageUrl)
+  const templateAlreadyInUse = !options.input.localFileKey && options.input.value.trim() === templateImageUrl
+
+  try {
+    const inputAsset = await resolveWatermarkAsset(options.input, options.loadWatermarkFile)
+    if (inputAsset) {
+      return inputAsset
+    }
+  } catch (error) {
+    if (!fallbackToTemplate || templateAlreadyInUse) {
+      console.warn(`图片水印“${options.watermark.name}”处理失败，已按降级策略跳过:`, error)
+      return null
+    }
+
+    try {
+      return await loadDrawableFromUrl(templateImageUrl, `图片水印“${options.watermark.name}”模板资源加载失败`)
+    } catch (templateError) {
+      console.warn(`图片水印“${options.watermark.name}”模板降级失败，已跳过:`, templateError)
+      return null
+    }
+  }
+
+  if (!fallbackToTemplate || templateAlreadyInUse || options.input.localFileKey) {
+    return null
+  }
+
+  try {
+    return await loadDrawableFromUrl(templateImageUrl, `图片水印“${options.watermark.name}”模板资源加载失败`)
+  } catch (templateError) {
+    console.warn(`图片水印“${options.watermark.name}”模板内容加载失败，已跳过:`, templateError)
+    return null
+  }
+}
+
+function getTemplateTextWatermarkContent(watermark: WatermarkItemDTO) {
+  return (watermark.textConfig?.content || '').trim()
+}
+
+function getTemplateImageWatermarkUrl(watermark: WatermarkItemDTO) {
+  return (watermark.imageConfig?.imageUrl || '').trim()
 }
 
 async function resolveWatermarkAsset(

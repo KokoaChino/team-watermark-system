@@ -42,6 +42,10 @@
                 </el-tag>
               </div>
               <div class="step-card-actions">
+                <el-button plain @click="executionFallbackDrawerVisible = true">
+                  <el-icon><Setting /></el-icon>
+                  执行设置
+                </el-button>
                 <el-button v-if="taskImages.length" type="primary" plain @click="openExcelImportDialog">
                   <el-icon><Document /></el-icon>
                   导入配置
@@ -323,6 +327,37 @@
       </template>
     </el-dialog>
 
+    <el-drawer
+      v-model="executionFallbackDrawerVisible"
+      title="任务执行设置"
+      size="460px"
+      append-to-body
+    >
+      <div class="execution-fallback-panel">
+        <el-alert
+          type="info"
+          show-icon
+          :closable="false"
+          title="当水印内容为空或绘制失败时，按以下策略执行降级"
+        />
+        <el-form label-width="80px" class="execution-fallback-form">
+          <el-form-item label="文字水印">
+            <el-radio-group v-model="executionFallbackConfig.text">
+              <el-radio value="skip">跳过这个水印的绘制</el-radio>
+              <el-radio value="template">采用水印模板的内容</el-radio>
+            </el-radio-group>
+          </el-form-item>
+
+          <el-form-item label="图片水印">
+            <el-radio-group v-model="executionFallbackConfig.image">
+              <el-radio value="skip">跳过这个水印的绘制</el-radio>
+              <el-radio value="template">采用水印模板的内容</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </el-form>
+      </div>
+    </el-drawer>
+
     <input
       ref="sourceImageInputRef"
       type="file"
@@ -354,7 +389,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Document, UploadFilled } from '@element-plus/icons-vue'
+import { Delete, Document, Setting, UploadFilled } from '@element-plus/icons-vue'
 import TemplateBrowser from '@/components/template/TemplateBrowser.vue'
 import { downloadExcelTemplateBase, parseExcel } from '@/api/excel'
 import { completeBatchTask, submitBatchTask } from '@/api/batchTask'
@@ -381,9 +416,14 @@ import {
   validateOutputName,
   validateTargetDirectory
 } from '@/utils/batchTask'
+import {
+  DEFAULT_BATCH_TASK_WATERMARK_FALLBACK_CONFIG,
+  normalizeBatchTaskWatermarkFallbackConfig
+} from '@/utils/batchTaskFallback'
 import type {
   BatchTaskExecutionSession,
   BatchTaskImageDraft,
+  BatchTaskWatermarkFallbackConfig,
   BatchTaskWatermarkInput,
   ImageConfigVO,
   WatermarkTemplateVO
@@ -420,6 +460,7 @@ const PATH_COLUMN_WIDTH = 180
 const FILE_NAME_COLUMN_WIDTH = 156
 const EXTENSION_COLUMN_WIDTH = 116
 const EXCEL_IMPORT_OPTIONS_STORAGE_KEY = 'batch-task-create-excel-import-options'
+const EXECUTION_FALLBACK_CONFIG_STORAGE_KEY = 'batch-task-create-execution-fallback-config'
 
 const defaultExcelImportOptions = {
   mappingMode: 'id' as 'id' | 'order',
@@ -436,6 +477,7 @@ const selectedTemplateId = ref<number | null>(null)
 const selectedTemplate = ref<WatermarkTemplateVO | null>(null)
 const taskImages = ref<BatchTaskImageDraft[]>([])
 const excelImportVisible = ref(false)
+const executionFallbackDrawerVisible = ref(false)
 const excelImportFile = ref<File | null>(null)
 const importingExcel = ref(false)
 const downloadingTemplateBase = ref(false)
@@ -461,6 +503,9 @@ const rightPaneScrollRef = ref<HTMLElement | null>(null)
 const workbenchRef = ref<HTMLElement | null>(null)
 
 const excelImportOptions = reactive({ ...defaultExcelImportOptions })
+const executionFallbackConfig = reactive<BatchTaskWatermarkFallbackConfig>({
+  ...DEFAULT_BATCH_TASK_WATERMARK_FALLBACK_CONFIG
+})
 
 const commonImageExtensions = [...SUPPORTED_IMAGE_EXTENSIONS]
 const excelImportFileName = computed(() => excelImportFile.value?.name || '未选择文件')
@@ -1154,6 +1199,7 @@ async function startTask() {
   startingTask.value = true
 
   try {
+    const normalizedFallbackConfig = normalizeBatchTaskWatermarkFallbackConfig(executionFallbackConfig)
     const submissionDescription = `${selectedTemplate.value.name} (${taskImages.value.length})`
     const totalSize = taskImages.value.reduce((sum, item) => sum + item.size, 0)
     const templateSnapshot = JSON.parse(JSON.stringify(selectedTemplate.value)) as WatermarkTemplateVO
@@ -1172,7 +1218,8 @@ async function startTask() {
       task: response.data,
       template: selectedTemplate.value,
       items: preparedItems,
-      description: submissionDescription
+      description: submissionDescription,
+      watermarkFallbackConfig: normalizedFallbackConfig
     })
 
     if (!creationResult.persisted) {
@@ -1270,6 +1317,29 @@ function persistExcelImportOptions() {
   window.localStorage.setItem(
     EXCEL_IMPORT_OPTIONS_STORAGE_KEY,
     JSON.stringify({ ...excelImportOptions })
+  )
+}
+
+function restoreExecutionFallbackConfig() {
+  try {
+    const storedConfig = window.localStorage.getItem(EXECUTION_FALLBACK_CONFIG_STORAGE_KEY)
+    const parsedConfig = storedConfig
+      ? JSON.parse(storedConfig) as Partial<BatchTaskWatermarkFallbackConfig>
+      : undefined
+    const normalizedConfig = normalizeBatchTaskWatermarkFallbackConfig(parsedConfig)
+    executionFallbackConfig.text = normalizedConfig.text
+    executionFallbackConfig.image = normalizedConfig.image
+  } catch (error) {
+    console.error('恢复执行降级策略失败:', error)
+    executionFallbackConfig.text = DEFAULT_BATCH_TASK_WATERMARK_FALLBACK_CONFIG.text
+    executionFallbackConfig.image = DEFAULT_BATCH_TASK_WATERMARK_FALLBACK_CONFIG.image
+  }
+}
+
+function persistExecutionFallbackConfig() {
+  window.localStorage.setItem(
+    EXECUTION_FALLBACK_CONFIG_STORAGE_KEY,
+    JSON.stringify({ ...executionFallbackConfig })
   )
 }
 
@@ -1449,6 +1519,14 @@ watch(
   { deep: true }
 )
 
+watch(
+  executionFallbackConfig,
+  () => {
+    persistExecutionFallbackConfig()
+  },
+  { deep: true }
+)
+
 onBeforeRouteLeave(async () => {
   if (allowStepTwoLeave.value || !hasStepTwoUnsavedState()) {
     return true
@@ -1460,6 +1538,7 @@ onBeforeRouteLeave(async () => {
 onMounted(() => {
   restoreLeftPaneWidth()
   restoreExcelImportOptions()
+  restoreExecutionFallbackConfig()
   handleWindowResize()
   window.addEventListener('resize', handleWindowResize)
   window.addEventListener('beforeunload', handleBeforeUnload)
@@ -1950,6 +2029,27 @@ onBeforeUnmount(() => {
     justify-content: center;
     gap: 12px;
     margin-top: 24px;
+  }
+
+  .execution-fallback-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    .execution-fallback-form {
+      padding: 0 4px;
+
+      :deep(.el-radio-group) {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      :deep(.el-radio) {
+        margin-right: 0;
+      }
+    }
   }
 
   .excel-import-form {

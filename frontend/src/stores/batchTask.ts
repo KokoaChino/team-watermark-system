@@ -1,6 +1,13 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import type { BatchTaskExecutionItem, BatchTaskExecutionSession, BatchTaskImageDraft, BatchTaskVO, WatermarkTemplateVO } from '@/types'
+import type {
+  BatchTaskExecutionItem,
+  BatchTaskExecutionSession,
+  BatchTaskImageDraft,
+  BatchTaskVO,
+  BatchTaskWatermarkFallbackConfig,
+  WatermarkTemplateVO
+} from '@/types'
 import {
   clearExecutionSessionData,
   deleteArtifact,
@@ -22,6 +29,10 @@ import {
   createExecutionSession,
   isSessionRecoverable
 } from '@/utils/batchTaskExecution'
+import {
+  LEGACY_BATCH_TASK_WATERMARK_FALLBACK_CONFIG,
+  normalizeBatchTaskWatermarkFallbackConfig
+} from '@/utils/batchTaskFallback'
 import { useUserStore } from '@/stores/user'
 
 interface ActiveSessionRefs {
@@ -147,6 +158,7 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
     template: WatermarkTemplateVO
     items: BatchTaskImageDraft[]
     description?: string
+    watermarkFallbackConfig?: BatchTaskWatermarkFallbackConfig
   }) {
     if (activeSessionId.value) {
       await clearExecutionSession(activeSessionId.value)
@@ -158,7 +170,8 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
       taskNo: options.task.taskNo,
       description,
       template: options.template,
-      items: options.items
+      items: options.items,
+      watermarkFallbackConfig: options.watermarkFallbackConfig
     }))
 
     setCurrentSessionOwner(session)
@@ -346,13 +359,20 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
 })
 
 function normalizeRestoredSession(session: BatchTaskExecutionSession): BatchTaskExecutionSession {
-  let changed = false
+  const normalizedFallbackConfig = normalizeBatchTaskWatermarkFallbackConfig(
+    session.watermarkFallbackConfig,
+    LEGACY_BATCH_TASK_WATERMARK_FALLBACK_CONFIG
+  )
+  const fallbackConfigChanged = session.watermarkFallbackConfig?.text !== normalizedFallbackConfig.text
+    || session.watermarkFallbackConfig?.image !== normalizedFallbackConfig.image
+
+  let processingItemChanged = false
   const items: BatchTaskExecutionItem[] = session.items.map((item) => {
     if (item.status !== 'processing') {
       return item
     }
 
-    changed = true
+    processingItemChanged = true
     return {
       ...item,
       status: 'pending' as const,
@@ -360,12 +380,20 @@ function normalizeRestoredSession(session: BatchTaskExecutionSession): BatchTask
     }
   })
 
-  if (!changed) {
+  if (!processingItemChanged && !fallbackConfigChanged) {
     return session
+  }
+
+  if (!processingItemChanged) {
+    return {
+      ...session,
+      watermarkFallbackConfig: normalizedFallbackConfig
+    }
   }
 
   return {
     ...session,
+    watermarkFallbackConfig: normalizedFallbackConfig,
     currentItemId: undefined,
     currentFileName: undefined,
     status: session.processedCount >= session.totalCount ? session.status : 'running',

@@ -186,6 +186,13 @@ export interface BatchTaskVO {
   createdAt: string
 }
 
+export type BatchTaskWatermarkFallbackStrategy = 'skip' | 'template'
+
+export interface BatchTaskWatermarkFallbackConfig {
+  text: BatchTaskWatermarkFallbackStrategy
+  image: BatchTaskWatermarkFallbackStrategy
+}
+
 export interface BatchTaskWatermarkInput {
   watermarkId: string
   watermarkName: string
@@ -273,6 +280,7 @@ export interface BatchTaskExecutionSession {
   templateName: string
   templateVersion: number
   templateSnapshot: WatermarkTemplateVO
+  watermarkFallbackConfig: BatchTaskWatermarkFallbackConfig
   description: string
   createdAt: string
   startedAt?: string
