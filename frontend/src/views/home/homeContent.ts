@@ -105,28 +105,28 @@ export const homeContent: HomeContent = {
     {
       title: '项目背景',
       summary: '说明选题背景、核心痛点、目标用户与整体方案',
-      href: '/home/docs/project-background.md',
+      href: '/home/docs/doc-viewer.html?file=project-background.md',
       updatedAt: '2026-03-14',
       icon: Document
     },
     {
       title: '使用手册',
       summary: '从登录、模板、任务到日志的一站式操作说明',
-      href: '/home/docs/user-manual.md',
+      href: '/home/docs/doc-viewer.html?file=user-manual.md',
       updatedAt: '2026-03-14',
       icon: Reading
     },
     {
       title: '更新日志',
       summary: '记录版本迭代、修复项与兼容性说明',
-      href: '/home/docs/changelog.md',
+      href: '/home/docs/doc-viewer.html?file=changelog.md',
       updatedAt: '2026-03-14',
       icon: Memo
     },
     {
       title: '更新前瞻',
       summary: '展示后续迭代方向与功能规划，持续补充更新内容',
-      href: '/home/docs/roadmap.md',
+      href: '/home/docs/doc-viewer.html?file=roadmap.md',
       updatedAt: '2026-03-14',
       icon: Reading
     }
@@ -151,7 +151,7 @@ export const homeContent: HomeContent = {
       icon: Message
     },
     {
-      title: '作者 Bilibili 主页',
+      title: '作者 BiliBili 主页',
       description: '这里主要用于引流关注，不强依赖上传视频内容',
       url: 'https://space.bilibili.com/497982061',
       icon: VideoPlay
@@ -163,7 +163,7 @@ export const homeContent: HomeContent = {
       title: '项目演示视频',
       summary: '',
       src: '/home/media/project-demo.mp4',
-      poster: '/home/images/video-poster.webp',
+      poster: '/home/images/video-poster.jpg',
       videoUpdatedAt: '2026-03-14',
       posterUpdatedAt: '2026-03-14'
     }
