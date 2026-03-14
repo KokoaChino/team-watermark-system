@@ -1,6 +1,7 @@
 package com.github.kokoachino.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -157,15 +158,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (type == null) {
             throw new BizException(ResultCode.VALIDATE_FAILED);
         }
+        String targetEmail = resolveVerificationEmail(type, sendCodeDTO);
         if (type == VerificationCodeTypeEnum.REGISTER) {
             long count = this.count(new LambdaQueryWrapper<User>()
-                    .eq(User::getEmail, sendCodeDTO.getEmail()));
+                    .eq(User::getEmail, targetEmail));
             if (count > 0) {
                 throw new BizException(ResultCode.EMAIL_EXIST);
             }
         }
         String code = RandomUtil.randomNumbers(6);
-        String redisKey = RedisKeyUtils.getEmailCodeKey(typeValue, sendCodeDTO.getEmail());
+        String redisKey = RedisKeyUtils.getEmailCodeKey(typeValue, targetEmail);
         if (redisUtils.hasKey(redisKey)) {
             Long expire = redisUtils.getExpire(redisKey);
             if (expire != null && expire > (systemProperties.getEmailCode().getExpiration() * 60 - 60)) {
@@ -199,11 +201,36 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             """.formatted(type.getDesc(), code, systemProperties.getEmailCode().getExpiration());
         asyncTaskUtils.execute(() -> {
             try {
-                mailUtils.sendHtmlMail(sendCodeDTO.getEmail(), subject, htmlContent);
+                mailUtils.sendHtmlMail(targetEmail, subject, htmlContent);
             } catch (Exception e) {
                 log.error("邮件发送失败", e);
             }
         });
+    }
+
+    private String resolveVerificationEmail(VerificationCodeTypeEnum type, SendCodeDTO sendCodeDTO) {
+        String email = StrUtil.trimToNull(sendCodeDTO.getEmail());
+        if (type != VerificationCodeTypeEnum.LOGIN) {
+            if (email == null) {
+                throw new BizException(ResultCode.VALIDATE_FAILED);
+            }
+            return email;
+        }
+        String account = StrUtil.trimToNull(sendCodeDTO.getAccount());
+        if (account == null) {
+            account = email;
+        }
+        if (account == null) {
+            throw new BizException(ResultCode.VALIDATE_FAILED);
+        }
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, account)
+                .or()
+                .eq(User::getEmail, account));
+        if (user == null) {
+            throw new BizException(ResultCode.USER_NOT_FOUND);
+        }
+        return user.getEmail();
     }
 
     @Override

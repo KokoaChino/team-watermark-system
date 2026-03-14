@@ -717,9 +717,9 @@ async function handleUnregister() {
     )
     unregisterLoading.value = true
     await unregisterApi()
-    userStore.logout()
+    await userStore.logout(true)
     ElMessage.success('账户已注销')
-    router.push('/auth/login')
+    await router.push('/auth/login')
   } catch (error) {
     if (error !== 'cancel') {
       console.error('注销失败:', error)
