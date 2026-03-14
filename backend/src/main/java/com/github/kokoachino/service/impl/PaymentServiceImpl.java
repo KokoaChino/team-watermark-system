@@ -191,8 +191,8 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     /**
-     * 构建支付宝异步通知地址。
-     * 支持仅配置穿透域名，服务端会自动补齐回调路径，避免回调打到根路径触发鉴权异常。
+     * 构建支付宝异步通知地址
+     * 支持仅配置穿透域名，服务端会自动补齐回调路径，避免回调打到根路径触发鉴权异常
      */
     private String buildNotifyUrl(String notifyUrl) {
         if (notifyUrl == null || notifyUrl.trim().isEmpty()) {
@@ -207,8 +207,8 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     /**
-     * 强制向支付宝同步订单状态。
-     * 当支付宝返回交易不存在时，通常是用户尚未支付或订单状态尚未落库，此场景按未支付处理即可。
+     * 强制向支付宝同步订单状态
+     * 当支付宝返回交易不存在时，通常是用户尚未支付或订单状态尚未落库，此场景按未支付处理即可
      */
     private void syncOrderStatusFromAlipay(String orderNo) {
         try {
