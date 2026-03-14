@@ -10,13 +10,26 @@ import com.github.kokoachino.common.enums.MappingModeEnum;
 import com.github.kokoachino.common.exception.BizException;
 import com.github.kokoachino.common.result.ResultCode;
 import com.github.kokoachino.model.dto.ExcelParseSettingsDTO;
+import com.github.kokoachino.model.dto.ExcelTemplateBaseRequestDTO;
 import com.github.kokoachino.model.vo.ExcelParseResultVO;
-import com.github.kokoachino.service.ExcelParseService;
+import com.github.kokoachino.service.ExcelService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -31,10 +44,15 @@ import java.util.regex.Pattern;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ExcelParseServiceImpl implements ExcelParseService {
+public class ExcelServiceImpl implements ExcelService {
 
     private static final Pattern INVALID_CHAR_PATTERN = Pattern.compile("[*^\\\\/:|\"<>?]");
     private static final Pattern INVALID_EXTENSION_PATTERN = Pattern.compile("[^a-zA-Z0-9]");
+    private static final String HEADER_FONT_NAME = "宋体";
+    private static final short HEADER_FONT_SIZE = 11;
+    private static final int DEFAULT_COLUMN_WIDTH = 16 * 256;
+    private static final int HEADER_ROW_INDEX = 0;
+    private static final int FILE_PATH_COLUMN_COUNT = 3;
 
     private String currentErrorFolderId;
 
@@ -65,6 +83,106 @@ public class ExcelParseServiceImpl implements ExcelParseService {
                 .configs(configs)
                 .validRowCount(configs.size())
                 .build();
+    }
+
+    @Override
+    public byte[] generateTemplateBase(ExcelTemplateBaseRequestDTO request) {
+        MappingModeEnum mappingMode = MappingModeEnum.fromValue(request.getMappingMode());
+        int textWatermarkCount = request.getTextWatermarkCount() == null ? 0 : Math.max(0, request.getTextWatermarkCount());
+        int imageWatermarkCount = request.getImageWatermarkCount() == null ? 0 : Math.max(0, request.getImageWatermarkCount());
+        List<ColumnSection> sections = buildTemplateSections(mappingMode, textWatermarkCount, imageWatermarkCount);
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet();
+            Row headerRow = sheet.createRow(HEADER_ROW_INDEX);
+            headerRow.setHeightInPoints(24);
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setFontName(HEADER_FONT_NAME);
+            headerFont.setFontHeightInPoints(HEADER_FONT_SIZE);
+            Map<String, CellStyle> styleCache = new HashMap<>();
+            for (ColumnSection section : sections) {
+                for (int column = section.startColumn; column <= section.endColumn; column++) {
+                    boolean sectionLeft = column == section.startColumn;
+                    boolean sectionRight = column == section.endColumn;
+                    CellStyle bodyStyle = getOrCreateTemplateCellStyle(workbook, styleCache, false, sectionLeft, sectionRight, headerFont);
+                    sheet.setDefaultColumnStyle(column, bodyStyle);
+                    sheet.setColumnWidth(column, DEFAULT_COLUMN_WIDTH);
+                    Cell headerCell = headerRow.createCell(column);
+                    if (column == section.startColumn) {
+                        headerCell.setCellValue(section.header);
+                    }
+                    CellStyle headerStyle = getOrCreateTemplateCellStyle(workbook, styleCache, true, sectionLeft, sectionRight, headerFont);
+                    headerCell.setCellStyle(headerStyle);
+                }
+                if (section.endColumn > section.startColumn) {
+                    sheet.addMergedRegion(new CellRangeAddress(
+                            HEADER_ROW_INDEX,
+                            HEADER_ROW_INDEX,
+                            section.startColumn,
+                            section.endColumn
+                    ));
+                }
+            }
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException e) {
+            log.error("Excel基座模板生成失败", e);
+            throw new BizException(ResultCode.EXCEL_PARSE_ERROR, "Excel模板生成失败");
+        }
+    }
+
+    private List<ColumnSection> buildTemplateSections(MappingModeEnum mappingMode, int textWatermarkCount, int imageWatermarkCount) {
+        List<ColumnSection> sections = new ArrayList<>();
+        int nextColumn = 0;
+        if (mappingMode == MappingModeEnum.ID) {
+            nextColumn = appendSection(sections, nextColumn, HeaderEnum.ID.getValue(), 1);
+        }
+        nextColumn = appendSection(sections, nextColumn, HeaderEnum.TEXT_WATERMARK.getValue(), textWatermarkCount);
+        nextColumn = appendSection(sections, nextColumn, HeaderEnum.IMAGE_WATERMARK.getValue(), imageWatermarkCount);
+        nextColumn = appendSection(sections, nextColumn, HeaderEnum.FILE_PATH.getValue(), FILE_PATH_COLUMN_COUNT);
+        nextColumn = appendSection(sections, nextColumn, HeaderEnum.RENAME.getValue(), 1);
+        appendSection(sections, nextColumn, HeaderEnum.EXTENSION.getValue(), 1);
+        return sections;
+    }
+
+    private int appendSection(List<ColumnSection> sections, int startColumn, String header, int columnCount) {
+        if (columnCount <= 0) {
+            return startColumn;
+        }
+        int endColumn = startColumn + columnCount - 1;
+        sections.add(new ColumnSection(header, startColumn, endColumn));
+        return endColumn + 1;
+    }
+
+    private CellStyle getOrCreateTemplateCellStyle(
+            Workbook workbook,
+            Map<String, CellStyle> styleCache,
+            boolean header,
+            boolean thickLeft,
+            boolean thickRight,
+            Font headerFont) {
+        String cacheKey = header + ":" + thickLeft + ":" + thickRight;
+        CellStyle cachedStyle = styleCache.get(cacheKey);
+        if (cachedStyle != null) {
+            return cachedStyle;
+        }
+        CellStyle style = workbook.createCellStyle();
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        if (header) {
+            style.setBorderTop(BorderStyle.THICK);
+            style.setBorderBottom(BorderStyle.THICK);
+            style.setFont(headerFont);
+        }
+        if (thickLeft) {
+            style.setBorderLeft(BorderStyle.THICK);
+        }
+        if (thickRight) {
+            style.setBorderRight(BorderStyle.THICK);
+        }
+        styleCache.put(cacheKey, style);
+        return style;
     }
 
     /**
@@ -459,5 +577,21 @@ public class ExcelParseServiceImpl implements ExcelParseService {
         private int filePathEnd = -1;
         private int renameColumnIndex = -1;
         private int extensionColumnIndex = -1;
+    }
+
+    /**
+     * 基座模板列区域
+     */
+    private static class ColumnSection {
+
+        private final String header;
+        private final int startColumn;
+        private final int endColumn;
+
+        private ColumnSection(String header, int startColumn, int endColumn) {
+            this.header = header;
+            this.startColumn = startColumn;
+            this.endColumn = endColumn;
+        }
     }
 }

@@ -268,6 +268,15 @@
         <el-form-item label="Excel 文件">
           <div class="excel-file-row">
             <el-button @click="triggerExcelFileSelect">选择文件</el-button>
+            <el-link
+              type="primary"
+              underline="never"
+              class="excel-template-link"
+              :disabled="downloadingTemplateBase"
+              @click="downloadExcelTemplateBaseFile"
+            >
+              不知道表格怎么填？
+            </el-link>
             <span class="excel-file-name">{{ excelImportFileName }}</span>
           </div>
         </el-form-item>
@@ -340,13 +349,14 @@
 </template>
 
 <script setup lang="ts">
+import axios from 'axios'
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Document, UploadFilled } from '@element-plus/icons-vue'
 import TemplateBrowser from '@/components/template/TemplateBrowser.vue'
-import { parseExcel } from '@/api/excel'
+import { downloadExcelTemplateBase, parseExcel } from '@/api/excel'
 import { completeBatchTask, submitBatchTask } from '@/api/batchTask'
 import { useBatchTaskStore } from '@/stores/batchTask'
 import {
@@ -358,7 +368,8 @@ import {
 } from '@/utils/browserStorage'
 import {
   buildExecutionReport,
-  cloneExecutionSession
+  cloneExecutionSession,
+  downloadFileBlob
 } from '@/utils/batchTaskExecution'
 import {
   applyExcelConfigToTaskImage,
@@ -427,6 +438,7 @@ const taskImages = ref<BatchTaskImageDraft[]>([])
 const excelImportVisible = ref(false)
 const excelImportFile = ref<File | null>(null)
 const importingExcel = ref(false)
+const downloadingTemplateBase = ref(false)
 const startingTask = ref(false)
 const allowStepTwoLeave = ref(false)
 const pendingWatermarkTarget = ref<{ imageId: string; watermarkId: string } | null>(null)
@@ -594,6 +606,36 @@ function triggerExcelFileSelect() {
   excelInputRef.value?.click()
 }
 
+async function downloadExcelTemplateBaseFile() {
+  if (!selectedTemplate.value) {
+    ElMessage.warning('请先选择模板')
+    return
+  }
+
+  if (downloadingTemplateBase.value) {
+    return
+  }
+
+  const { textWatermarkCount, imageWatermarkCount } = countTemplateWatermarks()
+  downloadingTemplateBase.value = true
+
+  try {
+    const { blob, fileName } = await downloadExcelTemplateBase({
+      mappingMode: excelImportOptions.mappingMode,
+      textWatermarkCount,
+      imageWatermarkCount
+    })
+
+    await downloadFileBlob(blob, fileName)
+    ElMessage.success('Excel 基座模板下载成功')
+  } catch (error) {
+    console.error('下载 Excel 基座模板失败:', error)
+    ElMessage.error(await resolveTemplateDownloadErrorMessage(error))
+  } finally {
+    downloadingTemplateBase.value = false
+  }
+}
+
 function handleExcelFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   excelImportFile.value = input.files?.[0] || null
@@ -709,6 +751,47 @@ function applyExcelConfigs(configs: ImageConfigVO[]) {
 
   setTaskImages(nextItems)
   return { matchedCount, unmatchedImageIds, overflowCount }
+}
+
+function countTemplateWatermarks() {
+  const counts = {
+    textWatermarkCount: 0,
+    imageWatermarkCount: 0
+  }
+
+  templateWatermarks.value.forEach((watermark) => {
+    if (watermark.type === 'text') {
+      counts.textWatermarkCount += 1
+      return
+    }
+    counts.imageWatermarkCount += 1
+  })
+
+  return counts
+}
+
+async function resolveTemplateDownloadErrorMessage(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return error instanceof Error ? error.message : '下载 Excel 基座模板失败，请稍后重试'
+  }
+
+  const responseData = error.response?.data
+  if (responseData instanceof Blob) {
+    try {
+      const responseText = await responseData.text()
+      const parsed = JSON.parse(responseText) as { message?: string }
+      if (typeof parsed.message === 'string' && parsed.message.trim()) {
+        return parsed.message
+      }
+    } catch {
+    }
+  }
+
+  if (typeof error.response?.data?.message === 'string' && error.response.data.message.trim()) {
+    return error.response.data.message
+  }
+
+  return error.message || '下载 Excel 基座模板失败，请稍后重试'
 }
 
 function triggerWatermarkImageSelect(imageId: string, watermarkId: string) {
@@ -1896,9 +1979,16 @@ onBeforeUnmount(() => {
       align-items: center;
       gap: 12px;
       min-height: 32px;
+      flex-wrap: wrap;
+    }
+
+    .excel-template-link {
+      flex-shrink: 0;
     }
 
     .excel-file-name {
+      flex: 1;
+      min-width: 180px;
       color: var(--color-text-secondary);
       word-break: break-all;
     }

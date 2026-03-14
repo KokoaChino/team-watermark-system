@@ -1,6 +1,7 @@
 package com.github.kokoachino.service;
 
 import com.github.kokoachino.model.dto.ExcelParseSettingsDTO;
+import com.github.kokoachino.model.dto.ExcelTemplateBaseRequestDTO;
 import com.github.kokoachino.model.vo.ExcelParseResultVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -11,7 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
  * @author Kokoa_Chino
  * @date 2026-02-17
  */
-public interface ExcelParseService {
+public interface ExcelService {
 
     /**
      * 解析Excel配置文件
@@ -22,4 +23,12 @@ public interface ExcelParseService {
      * @return 解析结果
      */
     ExcelParseResultVO parseExcel(MultipartFile excelFile, String mappingMode, ExcelParseSettingsDTO settings);
+
+    /**
+     * 生成Excel基座模板
+     *
+     * @param request 下载请求
+     * @return Excel二进制数据
+     */
+    byte[] generateTemplateBase(ExcelTemplateBaseRequestDTO request);
 }
