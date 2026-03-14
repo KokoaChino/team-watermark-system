@@ -1,4 +1,4 @@
-﻿import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { BatchTaskExecutionItem, BatchTaskExecutionSession, BatchTaskImageDraft, BatchTaskVO, WatermarkTemplateVO } from '@/types'
 import {
@@ -22,26 +22,125 @@ import {
   createExecutionSession,
   isSessionRecoverable
 } from '@/utils/batchTaskExecution'
+import { useUserStore } from '@/stores/user'
+
+interface ActiveSessionRefs {
+  sessionId: string | null
+  taskId: number | null
+  status: BatchTaskExecutionSession['status'] | null
+}
+
+type ActiveSessionScopes = Record<string, ActiveSessionRefs>
+
+function createEmptyActiveRefs(): ActiveSessionRefs {
+  return {
+    sessionId: null,
+    taskId: null,
+    status: null
+  }
+}
 
 export const useBatchTaskStore = defineStore('batchTask', () => {
+  const userStore = useUserStore()
   const activeSessionId = ref<string | null>(null)
   const activeTaskId = ref<number | null>(null)
   const activeStatus = ref<BatchTaskExecutionSession['status'] | null>(null)
   const currentSession = ref<BatchTaskExecutionSession | null>(null)
+  const currentSessionOwnerId = ref<number | null>(null)
+  const activeSessionScopes = ref<ActiveSessionScopes>({})
 
   const hasRecoverableSession = computed(() => {
-    if (currentSession.value) {
+    const currentUserId = getCurrentUserId()
+    if (currentSession.value && currentSessionOwnerId.value === currentUserId) {
       return isSessionRecoverable(currentSession.value.status)
     }
 
     return Boolean(activeSessionId.value && activeStatus.value && isSessionRecoverable(activeStatus.value))
   })
 
-  function syncActiveRefs(session: BatchTaskExecutionSession | null) {
-    activeSessionId.value = session?.id || null
-    activeTaskId.value = session?.taskId || null
-    activeStatus.value = session?.status || null
+  function getCurrentUserId() {
+    return userStore.userInfo?.id ?? null
   }
+
+  function getCurrentUserScopeKey() {
+    const userId = getCurrentUserId()
+    return userId === null ? null : String(userId)
+  }
+
+  function applyScopedActiveRefsForCurrentUser() {
+    const scopeKey = getCurrentUserScopeKey()
+    const nextRefs = scopeKey ? (activeSessionScopes.value[scopeKey] || createEmptyActiveRefs()) : createEmptyActiveRefs()
+    activeSessionId.value = nextRefs.sessionId
+    activeTaskId.value = nextRefs.taskId
+    activeStatus.value = nextRefs.status
+  }
+
+  function setScopedActiveRefs(scopeKey: string, nextRefs: ActiveSessionRefs) {
+    const nextScopes = {
+      ...activeSessionScopes.value
+    }
+
+    if (nextRefs.sessionId || nextRefs.taskId !== null || nextRefs.status) {
+      nextScopes[scopeKey] = nextRefs
+    } else {
+      delete nextScopes[scopeKey]
+    }
+
+    activeSessionScopes.value = nextScopes
+  }
+
+  function setCurrentSessionOwner(session: BatchTaskExecutionSession | null) {
+    currentSession.value = session
+    currentSessionOwnerId.value = session ? getCurrentUserId() : null
+  }
+
+  function ensureCurrentSessionOwnership() {
+    const currentUserId = getCurrentUserId()
+    if (currentSession.value && currentSessionOwnerId.value !== currentUserId) {
+      currentSession.value = null
+      currentSessionOwnerId.value = null
+    }
+  }
+
+  function syncActiveRefs(session: BatchTaskExecutionSession | null) {
+    const nextRefs: ActiveSessionRefs = session
+      ? {
+          sessionId: session.id,
+          taskId: session.taskId,
+          status: session.status
+        }
+      : createEmptyActiveRefs()
+
+    const scopeKey = getCurrentUserScopeKey()
+    if (scopeKey) {
+      setScopedActiveRefs(scopeKey, nextRefs)
+    }
+
+    activeSessionId.value = nextRefs.sessionId
+    activeTaskId.value = nextRefs.taskId
+    activeStatus.value = nextRefs.status
+  }
+
+  watch(
+    () => userStore.userInfo?.id ?? null,
+    () => {
+      ensureCurrentSessionOwnership()
+      applyScopedActiveRefsForCurrentUser()
+    },
+    {
+      immediate: true
+    }
+  )
+
+  watch(
+    activeSessionScopes,
+    () => {
+      applyScopedActiveRefsForCurrentUser()
+    },
+    {
+      deep: true
+    }
+  )
 
   async function replaceWithNewSession(options: {
     task: BatchTaskVO
@@ -62,7 +161,7 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
       items: options.items
     }))
 
-    currentSession.value = session
+    setCurrentSessionOwner(session)
 
     try {
       await persistSessionAssets(session, options.items)
@@ -120,6 +219,7 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
   }
 
   async function restoreActiveSession() {
+    ensureCurrentSessionOwnership()
     if (currentSession.value) {
       return cloneExecutionSession(currentSession.value)
     }
@@ -135,7 +235,7 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
     }
 
     const normalizedSession = normalizeRestoredSession(session)
-    currentSession.value = normalizedSession
+    setCurrentSessionOwner(normalizedSession)
     syncActiveRefs(normalizedSession)
 
     if (normalizedSession !== session) {
@@ -147,7 +247,7 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
 
   async function saveSession(session: BatchTaskExecutionSession, persist = true) {
     const normalizedSession = cloneExecutionSession(session)
-    currentSession.value = normalizedSession
+    setCurrentSessionOwner(normalizedSession)
 
     if (persist) {
       await putExecutionSession(normalizedSession)
@@ -158,8 +258,9 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
   }
 
   async function clearExecutionSession(sessionId?: string) {
+    ensureCurrentSessionOwnership()
     const targetSessionId = sessionId || currentSession.value?.id || activeSessionId.value
-    currentSession.value = null
+    setCurrentSessionOwner(null)
     syncActiveRefs(null)
 
     if (targetSessionId) {
@@ -213,7 +314,7 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
   }
 
   function setCurrentSession(session: BatchTaskExecutionSession | null) {
-    currentSession.value = session ? cloneExecutionSession(session) : null
+    setCurrentSessionOwner(session ? cloneExecutionSession(session) : null)
     syncActiveRefs(currentSession.value)
   }
 
@@ -222,6 +323,7 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
     activeTaskId,
     activeStatus,
     currentSession,
+    activeSessionScopes,
     hasRecoverableSession,
     replaceWithNewSession,
     restoreActiveSession,
@@ -239,7 +341,7 @@ export const useBatchTaskStore = defineStore('batchTask', () => {
   }
 }, {
   persist: {
-    paths: ['activeSessionId', 'activeTaskId', 'activeStatus']
+    paths: ['activeSessionScopes']
   }
 })
 
