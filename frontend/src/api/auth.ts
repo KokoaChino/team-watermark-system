@@ -2,7 +2,8 @@ import request from '@/utils/request'
 import type { ResultDTO, UserVO, CaptchaVO } from '@/types'
 
 export interface SendCodeDTO {
-  email: string
+  email?: string
+  account?: string
   type: string
 }
 

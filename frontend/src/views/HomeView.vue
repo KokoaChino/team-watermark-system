@@ -15,20 +15,15 @@
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
-import { logout, unregister } from '@/api/auth'
+import { unregister } from '@/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 async function handleLogout() {
-  try {
-    await logout()
-  } catch {
-  } finally {
-    userStore.logout()
-    ElMessage.success('已退出登录')
-    router.push('/auth/login')
-  }
+  await userStore.logout()
+  ElMessage.success('已退出登录')
+  await router.push('/auth/login')
 }
 
 async function handleUnregister() {
@@ -53,9 +48,9 @@ async function handleUnregister() {
     )
     
     await unregister()
-    userStore.logout()
+    await userStore.logout(true)
     ElMessage.success('账户已注销')
-    router.push('/auth/login')
+    await router.push('/auth/login')
   } catch (error) {
     if (error !== 'cancel') {
       console.error('注销失败:', error)

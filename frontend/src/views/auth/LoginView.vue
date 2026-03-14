@@ -196,7 +196,7 @@ const sendCodeText = computed(() => {
 const sendCodeDisabled = computed(() => {
   if (sendCodeCountdown.value > 0) return true
   if (!formData.account) return true
-  if (!emailRegex.test(formData.account)) return true
+  if (!emailRegex.test(formData.account) && !usernameRegex.test(formData.account)) return true
   return false
 })
 
@@ -210,18 +210,19 @@ function switchLoginType(type: 'password' | 'code') {
 }
 
 async function handleSendCode() {
-  if (!emailRegex.test(formData.account)) {
-    ElMessage.warning('请输入有效的邮箱地址')
+  const account = formData.account.trim()
+  if (!emailRegex.test(account) && !usernameRegex.test(account)) {
+    ElMessage.warning('请输入有效的用户名或邮箱')
     return
   }
 
   sendCodeLoading.value = true
   try {
     await sendCode({
-      email: formData.account,
+      account,
       type: 'login'
     })
-    ElMessage.success('验证码已发送到您的邮箱')
+    ElMessage.success('验证码已发送，请留意账户绑定邮箱')
     startCountdown()
   } catch {
   } finally {
