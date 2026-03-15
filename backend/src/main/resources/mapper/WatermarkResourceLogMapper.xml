@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.kokoachino.mapper.WatermarkResourceLogMapper">
+
+    <select id="selectByConditions" resultType="com.github.kokoachino.model.entity.WatermarkResourceLog">
+        SELECT * FROM tw_watermark_resource_log
+        WHERE team_id = #{teamId}
+        <if test="eventType != null and eventType != ''">
+            AND event_type = #{eventType}
+        </if>
+        <if test="resourceScope != null and resourceScope != ''">
+            AND resource_scope = #{resourceScope}
+        </if>
+        <if test="resourceName != null and resourceName != ''">
+            AND resource_name LIKE CONCAT('%', #{resourceName}, '%')
+        </if>
+        <if test="operatorKeyword != null and operatorKeyword != ''">
+            AND operator_username LIKE CONCAT('%', #{operatorKeyword}, '%')
+        </if>
+        <if test="startTime != null">
+            AND created_at <![CDATA[ >= ]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at <![CDATA[ <= ]]> #{endTime}
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByConditions" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tw_watermark_resource_log
+        WHERE team_id = #{teamId}
+        <if test="eventType != null and eventType != ''">
+            AND event_type = #{eventType}
+        </if>
+        <if test="resourceScope != null and resourceScope != ''">
+            AND resource_scope = #{resourceScope}
+        </if>
+        <if test="resourceName != null and resourceName != ''">
+            AND resource_name LIKE CONCAT('%', #{resourceName}, '%')
+        </if>
+        <if test="operatorKeyword != null and operatorKeyword != ''">
+            AND operator_username LIKE CONCAT('%', #{operatorKeyword}, '%')
+        </if>
+        <if test="startTime != null">
+            AND created_at <![CDATA[ >= ]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at <![CDATA[ <= ]]> #{endTime}
+        </if>
+    </select>
+
+    <select id="selectDistinctOperatorUsernames" resultType="java.lang.String">
+        SELECT DISTINCT operator_username
+        FROM tw_watermark_resource_log
+        WHERE team_id = #{teamId}
+          AND operator_username IS NOT NULL
+          AND operator_username != ''
+        <if test="keyword != null and keyword != ''">
+            AND operator_username LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY operator_username ASC
+    </select>
+</mapper>

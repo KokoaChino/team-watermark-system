@@ -22,6 +22,15 @@ public interface MinioService {
     String uploadFile(MultipartFile file, String objectKey);
 
     /**
+     * 上传文件并自动生成 object key
+     *
+     * @param file 文件
+     * @param prefix 对象 key 前缀（如 "images/"）
+     * @return 完整的文件访问 URL
+     */
+    String uploadFileWithAutoKey(MultipartFile file, String prefix);
+
+    /**
      * 获取文件访问URL
      *
      * @param objectKey 对象Key

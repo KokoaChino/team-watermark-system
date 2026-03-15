@@ -51,19 +51,21 @@ public class WatermarkTemplateController {
     }
 
     @PostMapping("/draft/from-template/{templateId}")
-    @Operation(summary = "基于现有模板创建草稿", description = "复制指定模板的配置到草稿区")
+    @Operation(summary = "基于现有模板创建草稿", description = "复制指定模板的配置到草稿区，如果存在冲突会返回冲突信息")
     public Result<DraftVO> createDraftFromTemplate(
-            @Parameter(description = "源模板ID") @PathVariable Integer templateId) {
+            @Parameter(description = "源模板ID") @PathVariable Integer templateId,
+            @Parameter(description = "是否强制创建（忽略冲突检查）") @RequestParam(defaultValue = "false") boolean force) {
         Integer userId = UserContext.getUserId();
-        DraftVO draft = templateService.createDraftFromTemplate(templateId, userId);
+        DraftVO draft = templateService.createDraftFromTemplate(templateId, userId, force);
         return Result.success(draft);
     }
 
     @PostMapping("/draft/new")
-    @Operation(summary = "创建空白草稿", description = "创建一个空白草稿，使用默认配置")
-    public Result<DraftVO> createEmptyDraft() {
+    @Operation(summary = "创建空白草稿", description = "创建一个空白草稿，如果存在冲突会返回冲突信息")
+    public Result<DraftVO> createEmptyDraft(
+            @Parameter(description = "是否强制创建（忽略冲突检查）") @RequestParam(defaultValue = "false") boolean force) {
         Integer userId = UserContext.getUserId();
-        DraftVO draft = templateService.createEmptyDraft(userId);
+        DraftVO draft = templateService.createEmptyDraft(userId, force);
         return Result.success(draft);
     }
 
@@ -93,13 +95,5 @@ public class WatermarkTemplateController {
         Integer teamId = TeamContext.getTeamId();
         WatermarkTemplateVO result = templateService.submitDraft(userId, username, teamId, dto);
         return Result.success(result);
-    }
-
-    @DeleteMapping("/draft/clear")
-    @Operation(summary = "清空草稿", description = "清空当前用户的工作区草稿")
-    public Result<Void> clearDraft() {
-        Integer userId = UserContext.getUserId();
-        templateService.clearDraft(userId);
-        return Result.success(null);
     }
 }

@@ -1,0 +1,38 @@
+import request from '@/utils/request'
+import type { ResultDTO, BatchTaskVO, WatermarkTemplateVO } from '@/types'
+
+export interface SubmitBatchTaskDTO {
+  totalCount: number
+  totalSize: number
+  templateId: number
+  templateName: string
+  templateVersion: number
+  templateSnapshot: WatermarkTemplateVO
+  description?: string
+}
+
+export function submitBatchTask(data: SubmitBatchTaskDTO) {
+  return request.post<never, ResultDTO<BatchTaskVO>>('/api/batch-task/submit', data)
+}
+
+export function completeBatchTask(data: {
+  taskId: number
+  successCount: number
+  reportJson?: string
+  resultZip?: File
+}) {
+  const formData = new FormData()
+  formData.append('taskId', String(data.taskId))
+  formData.append('successCount', String(data.successCount))
+  if (data.reportJson) {
+    formData.append('reportJson', data.reportJson)
+  }
+  if (data.resultZip) {
+    formData.append('resultZip', data.resultZip)
+  }
+  return request.post<never, ResultDTO<string>>('/api/batch-task/complete', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}

@@ -25,9 +25,10 @@ public interface PaymentService {
      * 查询订单状态
      *
      * @param orderNo 订单号
+     * @param forceSync 是否强制向支付宝同步一次订单状态
      * @return 订单VO
      */
-    PaymentOrderVO queryOrder(String orderNo);
+    PaymentOrderVO queryOrder(String orderNo, boolean forceSync);
 
     /**
      * 处理支付宝回调

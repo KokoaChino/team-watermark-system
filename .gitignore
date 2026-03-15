@@ -4,6 +4,12 @@
 ### Trae ###
 .trae/
 
+### Codex ###
+.codex/
+
+### node_modules ###
+node_modules/
+
 ### Java / Maven ###
 target/
 !.mvn/wrapper/maven-wrapper.jar

@@ -45,7 +45,7 @@ public class MailUtils {
     public void sendHtmlMail(String to, String subject, String htmlContent) throws MessagingException, UnsupportedEncodingException {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        helper.setFrom(from, "协作式批量图片水印处理系统");
+        helper.setFrom(from, "批量图片水印协作平台");
         helper.setTo(to);
         helper.setSubject(subject);
         helper.setText(htmlContent, true);

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.kokoachino.mapper.PointChangeLogMapper">
+
+    <select id="selectByConditions" resultType="com.github.kokoachino.model.entity.PointChangeLog">
+        SELECT * FROM tw_point_change_log
+        WHERE team_id = #{teamId}
+        <if test="changeType != null and changeType != ''">
+            AND change_type = #{changeType}
+        </if>
+        <if test="sourceType != null and sourceType != ''">
+            AND source_type = #{sourceType}
+        </if>
+        <if test="sourceId != null and sourceId != ''">
+            AND source_id LIKE CONCAT('%', #{sourceId}, '%')
+        </if>
+        <if test="operatorKeyword != null and operatorKeyword != ''">
+            AND operator_username LIKE CONCAT('%', #{operatorKeyword}, '%')
+        </if>
+        <if test="startTime != null">
+            AND created_at <![CDATA[ >= ]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at <![CDATA[ <= ]]> #{endTime}
+        </if>
+        ORDER BY created_at DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
+    <select id="countByConditions" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM tw_point_change_log
+        WHERE team_id = #{teamId}
+        <if test="changeType != null and changeType != ''">
+            AND change_type = #{changeType}
+        </if>
+        <if test="sourceType != null and sourceType != ''">
+            AND source_type = #{sourceType}
+        </if>
+        <if test="sourceId != null and sourceId != ''">
+            AND source_id LIKE CONCAT('%', #{sourceId}, '%')
+        </if>
+        <if test="operatorKeyword != null and operatorKeyword != ''">
+            AND operator_username LIKE CONCAT('%', #{operatorKeyword}, '%')
+        </if>
+        <if test="startTime != null">
+            AND created_at <![CDATA[ >= ]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at <![CDATA[ <= ]]> #{endTime}
+        </if>
+    </select>
+
+    <select id="selectDistinctOperatorUsernames" resultType="java.lang.String">
+        SELECT DISTINCT operator_username
+        FROM tw_point_change_log
+        WHERE team_id = #{teamId}
+          AND operator_username IS NOT NULL
+          AND operator_username != ''
+        <if test="keyword != null and keyword != ''">
+            AND operator_username LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        ORDER BY operator_username
+    </select>
+</mapper>

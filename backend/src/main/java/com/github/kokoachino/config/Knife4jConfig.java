@@ -21,8 +21,8 @@ public class Knife4jConfig {
     public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("协作式批量图片水印处理系统 API")
-                        .description("团队协作式批量图片水印处理系统后端接口文档")
+                        .title("批量图片水印协作平台 API")
+                        .description("团队批量图片水印协作平台后端接口文档")
                         .version("v1.0.0")
                         .contact(new Contact()
                                 .name("kokoachino")

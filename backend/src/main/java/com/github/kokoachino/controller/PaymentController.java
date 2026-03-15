@@ -39,8 +39,9 @@ public class PaymentController {
 
     @GetMapping("/query/{orderNo}")
     @Operation(summary = "查询订单状态", description = "查询支付订单状态，如已支付则自动充值点数")
-    public Result<PaymentOrderVO> queryOrder(@PathVariable String orderNo) {
-        PaymentOrderVO vo = paymentService.queryOrder(orderNo);
+    public Result<PaymentOrderVO> queryOrder(@PathVariable String orderNo,
+                                             @RequestParam(value = "forceSync", defaultValue = "false") boolean forceSync) {
+        PaymentOrderVO vo = paymentService.queryOrder(orderNo, forceSync);
         return Result.success(vo);
     }
 

@@ -1,12 +1,15 @@
 package com.github.kokoachino.service.impl;
 
 import cn.hutool.core.util.RandomUtil;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.github.kokoachino.common.enums.BlackListTypeEnum;
+import com.github.kokoachino.common.enums.LogUserStatusEnum;
 import com.github.kokoachino.common.enums.LoginTypeEnum;
+import com.github.kokoachino.common.enums.TeamEventTypeEnum;
 import com.github.kokoachino.common.enums.TeamRoleEnum;
 import com.github.kokoachino.common.enums.VerificationCodeTypeEnum;
 import com.github.kokoachino.common.exception.BizException;
@@ -23,6 +26,8 @@ import com.github.kokoachino.model.entity.TeamMember;
 import com.github.kokoachino.model.entity.User;
 import com.github.kokoachino.model.vo.CaptchaVO;
 import com.github.kokoachino.model.vo.UserVO;
+import com.github.kokoachino.service.LogUserStatusSyncService;
+import com.github.kokoachino.service.TeamEventLogService;
 import com.github.kokoachino.service.TeamService;
 import com.github.kokoachino.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -31,7 +36,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -50,6 +57,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private final JwtUtils jwtUtils;
     private final RedisUtils redisUtils;
     private final TeamService teamService;
+    private final TeamEventLogService teamEventLogService;
+    private final LogUserStatusSyncService logUserStatusSyncService;
     private final TeamMemberMapper teamMemberMapper;
     private final BlackListMapper blackListMapper;
     private final CaptchaUtils captchaUtils;
@@ -144,13 +153,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public void sendVerificationCode(SendCodeDTO sendCodeDTO) {
-        String code = RandomUtil.randomNumbers(6);
         String typeValue = sendCodeDTO.getType();
         VerificationCodeTypeEnum type = VerificationCodeTypeEnum.fromValue(typeValue);
         if (type == null) {
             throw new BizException(ResultCode.VALIDATE_FAILED);
         }
-        String redisKey = RedisKeyUtils.getEmailCodeKey(typeValue, sendCodeDTO.getEmail());
+        String targetEmail = resolveVerificationEmail(type, sendCodeDTO);
+        if (type == VerificationCodeTypeEnum.REGISTER) {
+            long count = this.count(new LambdaQueryWrapper<User>()
+                    .eq(User::getEmail, targetEmail));
+            if (count > 0) {
+                throw new BizException(ResultCode.EMAIL_EXIST);
+            }
+        }
+        String code = RandomUtil.randomNumbers(6);
+        String redisKey = RedisKeyUtils.getEmailCodeKey(typeValue, targetEmail);
         if (redisUtils.hasKey(redisKey)) {
             Long expire = redisUtils.getExpire(redisKey);
             if (expire != null && expire > (systemProperties.getEmailCode().getExpiration() * 60 - 60)) {
@@ -158,7 +175,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             }
         }
         redisUtils.set(redisKey, code, systemProperties.getEmailCode().getExpiration(), TimeUnit.MINUTES);
-        String subject = "【协作式批量图片水印处理系统】验证码（请勿泄露）";
+        String subject = "【批量图片水印协作平台】验证码（请勿泄露）";
         String htmlContent = """
             <html>
             <body style='font-family: Microsoft YaHei, sans-serif;'>
@@ -184,11 +201,36 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             """.formatted(type.getDesc(), code, systemProperties.getEmailCode().getExpiration());
         asyncTaskUtils.execute(() -> {
             try {
-                mailUtils.sendHtmlMail(sendCodeDTO.getEmail(), subject, htmlContent);
+                mailUtils.sendHtmlMail(targetEmail, subject, htmlContent);
             } catch (Exception e) {
                 log.error("邮件发送失败", e);
             }
         });
+    }
+
+    private String resolveVerificationEmail(VerificationCodeTypeEnum type, SendCodeDTO sendCodeDTO) {
+        String email = StrUtil.trimToNull(sendCodeDTO.getEmail());
+        if (type != VerificationCodeTypeEnum.LOGIN) {
+            if (email == null) {
+                throw new BizException(ResultCode.VALIDATE_FAILED);
+            }
+            return email;
+        }
+        String account = StrUtil.trimToNull(sendCodeDTO.getAccount());
+        if (account == null) {
+            account = email;
+        }
+        if (account == null) {
+            throw new BizException(ResultCode.VALIDATE_FAILED);
+        }
+        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, account)
+                .or()
+                .eq(User::getEmail, account));
+        if (user == null) {
+            throw new BizException(ResultCode.USER_NOT_FOUND);
+        }
+        return user.getEmail();
     }
 
     @Override
@@ -226,13 +268,20 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String lockKey = LockUtils.getUserLockKey(userId);
         lockUtils.executeWithLock(lockKey, () -> {
             User user = this.getById(userId);
-            if (user == null) return;
+            if (user == null) {
+                return;
+            }
             TeamMember member = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>()
                     .eq(TeamMember::getUserId, userId));
             if (member != null) {
                 Integer teamId = member.getTeamId();
                 String teamLockKey = LockUtils.getTeamLockKey(teamId);
                 lockUtils.executeWithLock(teamLockKey, () -> {
+                    Team team = teamService.getById(teamId);
+                    if (team == null) {
+                        teamMemberMapper.deleteById(member.getId());
+                        return;
+                    }
                     if (TeamRoleEnum.LEADER.getValue().equals(member.getRole())) {
                         List<TeamMember> others = teamMemberMapper.selectList(new LambdaQueryWrapper<TeamMember>()
                                 .eq(TeamMember::getTeamId, teamId)
@@ -242,11 +291,43 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                             TeamMember nextLeader = others.getFirst();
                             nextLeader.setRole(TeamRoleEnum.LEADER.getValue());
                             teamMemberMapper.updateById(nextLeader);
-                            Team team = teamService.getById(teamId);
                             team.setLeaderId(nextLeader.getUserId());
                             teamService.updateById(team);
+                            User nextLeaderUser = userMapper.selectById(nextLeader.getUserId());
+                            Map<String, Object> transferDetails = new HashMap<>();
+                            transferDetails.put("teamName", team.getName());
+                            transferDetails.put("reason", "user_unregister");
+                            teamEventLogService.record(TeamEventLogRecordDTO.builder()
+                                    .teamId(teamId)
+                                    .eventType(TeamEventTypeEnum.LEADER_TRANSFER)
+                                    .operatorUserId(userId)
+                                    .operatorUsername(user.getUsername())
+                                    .operatorUserStatus(LogUserStatusEnum.ACTIVE.getValue())
+                                    .affectedUserId(nextLeader.getUserId())
+                                    .affectedUsername(nextLeaderUser != null ? nextLeaderUser.getUsername() : null)
+                                    .affectedUserStatus(nextLeaderUser != null ? LogUserStatusEnum.ACTIVE.getValue() : LogUserStatusEnum.DELETED.getValue())
+                                    .beforeData(Map.of("leaderId", userId, "leaderName", user.getUsername()))
+                                    .afterData(Map.of("leaderId", nextLeader.getUserId(), "leaderName", nextLeaderUser != null ? nextLeaderUser.getUsername() : ""))
+                                    .details(transferDetails)
+                                    .build());
                         }
                     }
+                    Map<String, Object> leaveDetails = new HashMap<>();
+                    leaveDetails.put("teamName", team.getName());
+                    leaveDetails.put("role", member.getRole());
+                    leaveDetails.put("reason", "user_unregister");
+                    teamEventLogService.record(TeamEventLogRecordDTO.builder()
+                            .teamId(teamId)
+                            .eventType(TeamEventTypeEnum.MEMBER_LEAVE)
+                            .operatorUserId(userId)
+                            .operatorUsername(user.getUsername())
+                            .operatorUserStatus(LogUserStatusEnum.ACTIVE.getValue())
+                            .affectedUserId(userId)
+                            .affectedUsername(user.getUsername())
+                            .affectedUserStatus(LogUserStatusEnum.DELETED.getValue())
+                            .details(leaveDetails)
+                            .build());
+                    logUserStatusSyncService.syncUserStatus(teamId, userId, user.getUsername(), LogUserStatusEnum.DELETED);
                     teamMemberMapper.deleteById(member.getId());
                 });
             }
@@ -267,7 +348,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             return JSONUtil.toBean(cachedUserJson, UserVO.class);
         }
         User user = this.getById(userId);
-        if (user == null) return null;
+        if (user == null) {
+            return null;
+        }
         UserVO userVO = UserVO.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -285,6 +368,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (user == null) {
             throw new BizException(ResultCode.USER_NOT_FOUND);
         }
+        String oldUsername = user.getUsername();
+        boolean usernameChanged = false;
         boolean needLogout = false;
         if (dto.getUsername() != null) {
             if (dto.getUsername().equals(user.getUsername())) {
@@ -297,6 +382,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 throw new BizException(ResultCode.USER_EXIST);
             }
             user.setUsername(dto.getUsername());
+            usernameChanged = true;
         }
         if (dto.getNewPassword() != null) {
             user.setPassword(BCrypt.hashpw(dto.getNewPassword()));
@@ -323,6 +409,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         this.updateById(user);
         redisUtils.delete(RedisKeyUtils.getUserKey(userId));
+        if (usernameChanged) {
+            TeamMember currentMember = teamMemberMapper.selectOne(new LambdaQueryWrapper<TeamMember>().eq(TeamMember::getUserId, userId));
+            if (currentMember != null) {
+                logUserStatusSyncService.syncUserStatus(currentMember.getTeamId(), userId, oldUsername, LogUserStatusEnum.RENAMED);
+            }
+        }
         if (needLogout) {
             String token = request.getHeader("Authorization");
             if (token != null && token.startsWith("Bearer ")) {

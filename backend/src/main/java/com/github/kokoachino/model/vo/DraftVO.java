@@ -24,6 +24,9 @@ public class DraftVO {
     @Schema(description = "源模板ID（为空表示新建）", example = "10")
     private Integer sourceTemplateId;
 
+    @Schema(description = "源模板名称", example = "商品主图水印")
+    private String sourceTemplateName;
+
     @Schema(description = "源模板版本号", example = "3")
     private Integer sourceVersion;
 
