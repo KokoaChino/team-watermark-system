@@ -204,9 +204,48 @@ function handleGenerateDialogClose() {
   generateForm.value = { validUntil: '', maxUses: undefined }
 }
 
-function handleCopy(text: string) {
-  navigator.clipboard.writeText(text)
-  ElMessage.success('已复制到剪贴板')
+async function copyText(text: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch (error) {
+      console.warn('Clipboard API 复制失败，尝试降级方案:', error)
+    }
+  }
+
+  if (typeof document === 'undefined' || !document.body) {
+    return false
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', 'readonly')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  textarea.style.top = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+
+  let copied = false
+  try {
+    copied = document.execCommand('copy')
+  } catch (error) {
+    console.error('降级复制失败:', error)
+  } finally {
+    document.body.removeChild(textarea)
+  }
+
+  return copied
+}
+
+async function handleCopy(text: string) {
+  const copied = await copyText(text)
+  if (copied) {
+    ElMessage.success('已复制到剪贴板')
+    return
+  }
+  ElMessage.error('复制失败，请手动复制')
 }
 
 async function fetchRecords(codeId: number) {

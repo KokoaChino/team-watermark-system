@@ -120,7 +120,7 @@ export const homeContent: HomeContent = {
       title: '更新日志',
       summary: '记录版本迭代、修复项与兼容性说明',
       href: '/home/docs/doc-viewer.html?file=changelog.md',
-      updatedAt: '2026-03-14',
+      updatedAt: '2026-03-17',
       icon: Memo
     },
     {

@@ -25,6 +25,8 @@ spring:
       host: localhost
       port: 6379
       database: 2
+      timeout: 10s
+      connect-timeout: 10s
   mail: # 邮件服务
     host: smtp.163.com
     username: 17575010142@163.com
@@ -46,6 +48,25 @@ logging: # 日志
     com.github.kokoachino.mapper: info
     org.apache.ibatis: warn
     com.baomidou.mybatisplus: warn
+
+app: # Redisson
+  redisson:
+    ssl-enabled: false
+    connect-timeout-ms: 10000
+    command-timeout-ms: 10000
+    idle-connection-timeout-ms: 10000
+    retry-attempts: 4
+    retry-interval-ms: 1500
+    ping-connection-interval-ms: 30000
+    keep-alive: true
+    tcp-no-delay: true
+    connection-pool-size: 64
+    connection-minimum-idle-size: 16
+    subscription-connection-pool-size: 50
+    subscription-connection-minimum-idle-size: 1
+    threads: 0
+    netty-threads: 0
+    lock-watchdog-timeout-ms: 30000
 
 mybatis-plus: # MyBatis-Plus
   mapper-locations: classpath*:/mapper/**/*.xml
